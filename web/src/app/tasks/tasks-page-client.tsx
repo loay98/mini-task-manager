@@ -11,7 +11,7 @@ import {
   useUpdateTaskMutation,
 } from "@/lib/queries/tasks";
 import { useTaskNavigationStore } from "@/store/task-navigation-store";
-import type { CreateTaskPayload, UpdateTaskPayload } from "@/types/api";
+import type { CreateTaskPayload, TaskSortBy, SortOrder, UpdateTaskPayload } from "@/types/api";
 import {
   Card,
   CardAction,
@@ -39,6 +39,9 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
   const [search, setSearch] = useState("");
   const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatusFilter>(pendingStatus ?? statusFilter);
   const [assigneeFilter, setAssigneeFilter] = useState<TaskAssigneeFilter>("all");
+  const [assignedByFilter, setAssignedByFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<TaskSortBy>("id");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [page, setPage] = useState(1);
   const [actingTaskId, setActingTaskId] = useState<number | null>(null);
 
@@ -62,6 +65,9 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
           : assigneeFilter === "unassigned"
           ? null
           : Number(assigneeFilter),
+      assigned_by: assignedByFilter === "all" ? undefined : Number(assignedByFilter),
+      sort_by: sortBy,
+      sort_order: sortOrder,
     },
     true
   );
@@ -157,6 +163,21 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
               assignee={assigneeFilter}
               onAssigneeChange={(value) => {
                 setAssigneeFilter(value);
+                setPage(1);
+              }}
+              assignedBy={assignedByFilter}
+              onAssignedByChange={(value) => {
+                setAssignedByFilter(value);
+                setPage(1);
+              }}
+              sortBy={sortBy}
+              onSortByChange={(value) => {
+                setSortBy(value);
+                setPage(1);
+              }}
+              sortOrder={sortOrder}
+              onSortOrderChange={(value) => {
+                setSortOrder(value);
                 setPage(1);
               }}
               disabled={tasksLoading}

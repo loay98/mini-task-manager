@@ -3,18 +3,25 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Menu, ShieldCheck, X } from "lucide-react";
+import { LayoutDashboard, Loader2, Menu, ShieldCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
+import { useLogoutMutation } from "@/lib/queries/auth";
 
 export function Topbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const logoutMutation = useLogoutMutation();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+    } catch {
+      // Ignore errors - still logout locally
+    }
     logout();
     setIsMenuOpen(false);
     router.replace("/login");
@@ -65,7 +72,8 @@ export function Topbar() {
           <div className="flex items-center gap-2">
             {user ? (
               <div className="hidden md:block">
-                <Button variant="outline" size="sm" onClick={handleLogout}>
+                <Button variant="destructive" size="sm" onClick={handleLogout} disabled={logoutMutation.isPending}>
+                  {logoutMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
                   Logout
                 </Button>
               </div>
@@ -132,7 +140,8 @@ export function Topbar() {
 
               {user ? (
                 <div className="mt-auto border-t pt-4">
-                  <Button variant="outline" className="w-full justify-start" onClick={handleLogout}>
+                  <Button variant="destructive" className="w-full justify-start" onClick={handleLogout} disabled={logoutMutation.isPending}>
+                    {logoutMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : null}
                     Logout
                   </Button>
                 </div>

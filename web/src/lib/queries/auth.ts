@@ -10,3 +10,11 @@ export function useLoginMutation() {
     },
   });
 }
+
+export function useLogoutMutation() {
+  return useMutation({
+    mutationFn: async () => {
+      await api.post<ApiEnvelope<null>>("/auth/logout");
+    },
+  });
+}

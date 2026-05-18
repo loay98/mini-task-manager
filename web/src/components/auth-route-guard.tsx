@@ -27,10 +27,12 @@ export function AuthRouteGuard({ mode, redirectTo, fallback, children }: AuthRou
     }
   }, [hasHydrated, isManager, mode, redirectTo, router]);
 
+  // Show fallback during hydration to prevent flash of wrong content
   if (!hasHydrated) {
     return fallback;
   }
 
+  // After hydration, check auth status
   if (mode === "manager-only" && !isManager) {
     return fallback;
   }

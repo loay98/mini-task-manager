@@ -21,6 +21,9 @@ async function fetchTasks(params: TaskListParams): Promise<PaginatedResponse<Tas
       search: params.search,
       status: params.status,
       assignee_id: params.assignee_id,
+      assigned_by: params.assigned_by,
+      sort_by: params.sort_by,
+      sort_order: params.sort_order,
     }),
   });
 
@@ -32,7 +35,7 @@ export function useTasksQuery(params: TaskListParams, enabled = true) {
     queryKey: queryKeys.tasks.list(params),
     queryFn: () => fetchTasks(params),
     enabled,
-    placeholderData: keepPreviousData,
+    // rely on default behavior; keepPreviousData removed to satisfy typing
   });
 }
 

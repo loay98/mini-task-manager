@@ -36,8 +36,12 @@ export const useAuthStore = create<AuthState>()(
       name: "mini-task-manager-auth",
       storage: createJSONStorage(() => localStorage),
       onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+        // Use setTimeout to ensure hydration completes after render
+        setTimeout(() => state?.setHasHydrated(true), 0);
       },
     }
   )
 );
+
+// Export logout mutation hook for use in components
+export { useLogoutMutation } from "@/lib/queries/auth";

@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -34,7 +40,9 @@ import {
   useUpdateWorkerMutation,
   useWorkersQuery,
 } from "@/lib/queries/workers";
-import type { CreateWorkerPayload, UpdateWorkerPayload, User } from "@/types/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "@/lib/queries/keys";
+import type { CreateWorkerPayload, UpdateWorkerPayload, User, WorkerSortBy, SortOrder } from "@/types/api";
 
 const WORKERS_PER_PAGE = 8;
 
@@ -169,6 +177,10 @@ function WorkerCreateForm({
   );
 }
 
+function EmptyValue({ children = "—" }: { children?: string }) {
+  return <span className="block w-full text-center text-muted-foreground">{children}</span>;
+}
+
 export function WorkersManagement() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -179,6 +191,8 @@ export function WorkersManagement() {
   const [editPassword, setEditPassword] = useState("");
   const [editError, setEditError] = useState("");
   const [actingWorkerId, setActingWorkerId] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<WorkerSortBy>("name");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
 
   const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 500);
 
@@ -193,9 +207,19 @@ export function WorkersManagement() {
       page,
       per_page: WORKERS_PER_PAGE,
       search: debouncedSearch || undefined,
+      sort_by: sortBy,
+      sort_order: sortOrder,
     },
     true
   );
+
+  const queryClient = useQueryClient();
+
+  // Ensure worker list refetches when sort changes (some servers may cache)
+  // Invalidate the workers list when sortBy or sortOrder change
+  useEffect(() => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.workers.all });
+  }, [sortBy, sortOrder, queryClient]);
 
   const createWorker = useCreateWorkerMutation();
   const updateWorker = useUpdateWorkerMutation();
@@ -286,15 +310,60 @@ export function WorkersManagement() {
       <CardContent className="space-y-4 overflow-visible">
         <WorkerCreateForm onSubmit={handleCreateWorker} loading={createWorker.isPending} />
 
-        <SearchInput
-          value={search}
-          onChange={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-          placeholder="Search workers..."
-          isSearching={isSearchPending}
-        />
+        <div className="grid gap-3 md:grid-cols-3">
+          <SearchInput
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder="Search workers..."
+            isSearching={isSearchPending}
+          />
+
+          <div className="flex gap-2">
+            <Select
+              value={sortBy}
+              onValueChange={(next) => {
+                if (next) setSortBy(next as WorkerSortBy);
+                setPage(1);
+              }}
+              disabled={isLoading}
+            >
+              <SelectTrigger className="w-full">
+                <div className="flex items-center justify-between w-full">
+                  <span className="flex flex-1 items-center text-left">
+                    {sortBy === "id" ? "ID" : sortBy === "name" ? "Name" : "Joined"}
+                  </span>
+                </div>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="id">ID</SelectItem>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="created_at">Joined</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="flex items-center">
+              <button
+                type="button"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-transparent p-0 text-sm hover:bg-accent"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                  setPage(1);
+                }}
+                aria-label={sortOrder === "asc" ? "Switch to descending" : "Switch to ascending"}
+              >
+                {sortOrder === "asc" ? (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"/></svg>
+                ) : (
+                  <svg className="h-4 w-4 rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7"/></svg>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
 
         {isError ? (
           <p className="text-sm text-destructive">
@@ -377,7 +446,7 @@ export function WorkersManagement() {
                   <TableRow key={worker.id}>
                     <TableCell className="font-mono text-muted-foreground">#{worker.id}</TableCell>
                     <TableCell className="font-medium">{worker.name}</TableCell>
-                    <TableCell>{worker.email}</TableCell>
+                    <TableCell>{worker.email ? worker.email : <EmptyValue />}</TableCell>
                     <TableCell>{createdAtLabel}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex flex-wrap items-center justify-end gap-2">

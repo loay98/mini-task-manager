@@ -19,6 +19,8 @@ async function fetchWorkers(params: WorkerListParams): Promise<PaginatedResponse
       search: params.search,
       page: params.page,
       per_page: params.per_page,
+      sort_by: params.sort_by,
+      sort_order: params.sort_order,
     }),
   });
 
@@ -30,7 +32,7 @@ export function useWorkersQuery(params: WorkerListParams, enabled = true) {
     queryKey: queryKeys.workers.list(params),
     queryFn: () => fetchWorkers(params),
     enabled,
-    placeholderData: keepPreviousData,
+    // rely on default behavior; keepPreviousData removed to satisfy typing
   });
 }
 
