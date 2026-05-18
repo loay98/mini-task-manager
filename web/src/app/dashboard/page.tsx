@@ -1,87 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { getApiMessage } from "@/lib/api-error";
-import {
-  useCreateTaskMutation,
-  useDeleteTaskMutation,
-  useTasksQuery,
-  useUpdateTaskMutation,
-} from "@/lib/queries/tasks";
+import Link from "next/link";
+import { useTasksQuery } from "@/lib/queries/tasks";
+import { useWorkersQuery } from "@/lib/queries/workers";
 import { useAuthStore } from "@/store/auth-store";
-import type { CreateTaskPayload, UpdateTaskPayload } from "@/types/api";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { PaginationControls } from "@/components/pagination-controls";
-import { TaskCreateForm } from "@/components/task-create-form";
-import { TaskFilters, type TaskAssigneeFilter, type TaskStatusFilter } from "@/components/task-filters";
-import { TaskTable } from "@/components/task-table";
-import { WorkersManagement } from "@/components/workers-management";
-import { TableSkeleton } from "@/components/skeletons";
-
-const TASKS_PER_PAGE = 10;
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { token, user, logout } = useAuthStore();
-
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<TaskAssigneeFilter>("all");
-  const [page, setPage] = useState(1);
-  const [actingTaskId, setActingTaskId] = useState<number | null>(null);
-
-  const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 800);
+  const { token, user } = useAuthStore();
 
   const isManager = Boolean(token && user?.role === "manager");
 
-  const {
-    data: tasksData,
-    isLoading: tasksLoading,
-    isFetching: tasksFetching,
-    isError,
-    error,
-  } = useTasksQuery(
-    {
-      page,
-      per_page: TASKS_PER_PAGE,
-      search: debouncedSearch || undefined,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      assignee_id:
-        assigneeFilter === "all"
-          ? undefined
-          : assigneeFilter === "unassigned"
-            ? null
-            : Number(assigneeFilter),
-    },
-    isManager
-  );
-
-  const createTask = useCreateTaskMutation();
-  const updateTask = useUpdateTaskMutation();
-  const deleteTask = useDeleteTaskMutation();
-
-  const tasks = tasksData?.items ?? [];
-  const pagination = tasksData?.pagination ?? {
-    current_page: 1,
-    last_page: 1,
-    per_page: TASKS_PER_PAGE,
-    total: 0,
-  };
-
-  const isSearchPending = isDebouncing || (tasksFetching && !tasksLoading);
-  const hasActiveFilters =
-    debouncedSearch.length > 0 || statusFilter !== "all" || assigneeFilter !== "all";
+  // small stats queries
+  const totalTasksQuery = useTasksQuery({ page: 1, per_page: 1 }, isManager);
+  const pendingTasksQuery = useTasksQuery({ page: 1, per_page: 1, status: "pending" }, isManager);
+  const completedTasksQuery = useTasksQuery({ page: 1, per_page: 1, status: "completed" }, isManager);
+  const workersQuery = useWorkersQuery({ page: 1, per_page: 1 }, isManager);
 
   useEffect(() => {
     if (!token) return;
@@ -90,130 +27,60 @@ export default function DashboardPage() {
     }
   }, [token, user, router]);
 
-  const handleCreateTask = async (payload: CreateTaskPayload) => {
-    await createTask.mutateAsync(payload);
-    setPage(1);
-  };
-
-  const handleUpdateTask = async (id: number, payload: UpdateTaskPayload) => {
-    try {
-      setActingTaskId(id);
-      await updateTask.mutateAsync({ id, payload });
-    } catch {
-      throw new Error("Update failed");
-    } finally {
-      setActingTaskId(null);
-    }
-  };
-
-  const handleDeleteTask = async (id: number) => {
-    try {
-      setActingTaskId(id);
-      await deleteTask.mutateAsync(id);
-    } catch {
-      throw new Error("Delete failed");
-    } finally {
-      setActingTaskId(null);
-    }
-  };
-
-  const handleLogout = () => {
-    logout();
-    router.replace("/login");
-  };
 
   if (!isManager) {
     return null;
   }
 
+  const totalTasks = totalTasksQuery.data?.pagination.total ?? 0;
+  const pendingTasks = pendingTasksQuery.data?.pagination.total ?? 0;
+  const completedTasks = completedTasksQuery.data?.pagination.total ?? 0;
+  const totalWorkers = workersQuery.data?.pagination.total ?? 0;
+
   return (
     <main className="app-gradient min-h-screen p-4 md:p-8">
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+      <div className="mx-auto w-full max-w-5xl">
         <Card>
           <CardHeader>
-            <CardTitle>Task Dashboard</CardTitle>
-            <CardDescription>Manage team work items and assignments.</CardDescription>
-            <CardAction>
-              <Button variant="outline" onClick={handleLogout}>
-                Logout
-              </Button>
-            </CardAction>
+            <CardTitle>Overview</CardTitle>
+            <CardDescription>High level metrics for your team.</CardDescription>
           </CardHeader>
           <CardContent>
-            <TaskCreateForm
-              onSubmit={handleCreateTask}
-              loading={createTask.isPending}
-            />
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border bg-card p-4">
+                <div className="text-sm text-muted-foreground">Total tasks</div>
+                <div className="mt-2 text-2xl font-semibold">{totalTasks}</div>
+                <div className="mt-3">
+                  <Link href="/tasks" className="text-sm text-primary">Manage tasks →</Link>
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-card p-4">
+                <div className="text-sm text-muted-foreground">Pending</div>
+                <div className="mt-2 text-2xl font-semibold">{pendingTasks}</div>
+                <div className="mt-3">
+                  <Link href="/tasks?status=pending" className="text-sm text-primary">View pending →</Link>
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-card p-4">
+                <div className="text-sm text-muted-foreground">Completed</div>
+                <div className="mt-2 text-2xl font-semibold">{completedTasks}</div>
+                <div className="mt-3">
+                  <Link href="/tasks?status=completed" className="text-sm text-primary">View completed →</Link>
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-card p-4">
+                <div className="text-sm text-muted-foreground">Workers</div>
+                <div className="mt-2 text-2xl font-semibold">{totalWorkers}</div>
+                <div className="mt-3">
+                  <Link href="/workers" className="text-sm text-primary">Manage workers →</Link>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
-
-        <Card className="overflow-visible">
-          <CardHeader>
-            <CardTitle>All Tasks</CardTitle>
-            <CardDescription>Search, filter, and browse tasks across your team.</CardDescription>
-            {tasksLoading || tasksFetching ? (
-              <CardAction>
-                <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="size-4 animate-spin" />
-                  {isSearchPending ? "Searching..." : "Loading..."}
-                </span>
-              </CardAction>
-            ) : null}
-          </CardHeader>
-          <CardContent className="space-y-4 overflow-visible">
-            <TaskFilters
-              search={search}
-              onSearchChange={(value) => {
-                setSearch(value);
-                setPage(1);
-              }}
-              status={statusFilter}
-              onStatusChange={(value) => {
-                setStatusFilter(value);
-                setPage(1);
-              }}
-              assignee={assigneeFilter}
-              onAssigneeChange={(value) => {
-                setAssigneeFilter(value);
-                setPage(1);
-              }}
-              disabled={tasksLoading}
-              isSearchPending={isSearchPending}
-            />
-
-            {isError ? (
-              <p className="text-sm text-destructive">
-                {getApiMessage(error, "Failed to fetch tasks.")}
-              </p>
-            ) : null}
-
-            {tasksLoading ? (
-              <TableSkeleton rows={5} />
-            ) : (
-              <TaskTable
-                tasks={tasks}
-                onUpdate={handleUpdateTask}
-                onDelete={handleDeleteTask}
-                actingTaskId={actingTaskId}
-                emptyMessage={
-                  hasActiveFilters
-                    ? "No tasks match your search or filters."
-                    : "No tasks yet. Create your first task above."
-                }
-              />
-            )}
-
-            {!tasksLoading && pagination.total > 0 ? (
-              <PaginationControls
-                pagination={pagination}
-                onPageChange={setPage}
-                disabled={tasksFetching}
-              />
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <WorkersManagement />
       </div>
     </main>
   );
