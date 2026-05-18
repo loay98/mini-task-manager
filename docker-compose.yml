@@ -1,0 +1,64 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: mtm_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      APP_DEBUG: true
+      APP_URL: http://localhost:8000
+
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: mini_task_manager
+      DB_USERNAME: mini_user
+      DB_PASSWORD: mini_password
+
+      JWT_TTL: 60
+    volumes:
+      - ./backend:/var/www
+
+  mysql:
+    image: mysql:8.0
+    command: --skip-ssl
+    container_name: mtm_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: mini_task_manager
+      MYSQL_USER: mini_user
+      MYSQL_PASSWORD: mini_password
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ./web
+    container_name: mtm_web
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+
+volumes:
+  mysql_data:

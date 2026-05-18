@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Enums\TaskStatus;
+use App\Http\Resources\TaskResource;
+use App\Models\Task;
+use Illuminate\Http\Request;
+
+class WorkerTaskController extends BaseApiController
+{
+    public function index(Request $request)
+    {
+        $tasks = Task::query()
+            ->with('assignee:id,name,email,role')
+            ->where('assignee_id', $request->user()->id)
+            ->latest()
+            ->paginate((int) $request->integer('per_page', 10));
+
+        return $this->success([
+            'items' => TaskResource::collection($tasks->items()),
+            'pagination' => [
+                'current_page' => $tasks->currentPage(),
+                'last_page' => $tasks->lastPage(),
+                'per_page' => $tasks->perPage(),
+                'total' => $tasks->total(),
+            ],
+        ], 'Assigned tasks fetched successfully.');
+    }
+
+    public function complete(Request $request, Task $task)
+    {
+        if ((int) $task->assignee_id !== (int) $request->user()->id) {
+            return $this->error('You can only complete your assigned tasks.', 403);
+        }
+
+        if ($task->status === TaskStatus::COMPLETED->value) {
+            return $this->error('Task is already completed.', 422);
+        }
+
+        $task->update([
+            'status' => TaskStatus::COMPLETED->value,
+        ]);
+
+        $task->load('assignee:id,name,email,role');
+
+        return $this->success(new TaskResource($task), 'Task marked as completed.');
+    }
+}

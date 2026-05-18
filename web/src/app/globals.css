@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5f7f4;
+  --foreground: #172016;
+  --muted: #edf1ea;
+  --muted-foreground: #536350;
+  --card: #ffffff;
+  --card-foreground: #172016;
+  --border: #d7e1d2;
+  --input: #d7e1d2;
+  --primary: #2f6b2f;
+  --primary-foreground: #f7fff5;
+  --accent: #e1eed8;
+  --accent-foreground: #23381f;
+  --danger: #c03a2b;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), sans-serif;
+}
+
+.app-gradient {
+  background-image:
+    radial-gradient(circle at 5% 0%, rgba(47, 107, 47, 0.12) 0%, rgba(47, 107, 47, 0) 40%),
+    radial-gradient(circle at 90% 80%, rgba(192, 58, 43, 0.08) 0%, rgba(192, 58, 43, 0) 40%);
+}
