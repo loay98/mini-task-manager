@@ -6,13 +6,18 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { WorkerCombobox } from "@/components/worker-combobox";
 import type { TaskStatus } from "@/types/api";
 
 export type TaskStatusFilter = TaskStatus | "all";
 export type TaskAssigneeFilter = "all" | "unassigned" | string;
+
+const statusLabels: Record<TaskStatusFilter, string> = {
+  all: "All statuses",
+  pending: "Pending",
+  completed: "Completed",
+};
 
 interface TaskFiltersProps {
   search: string;
@@ -53,12 +58,12 @@ export function TaskFilters({
         disabled={disabled}
       >
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="All statuses" />
+          <span className="flex flex-1 items-center text-left">{statusLabels[status]}</span>
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
-          <SelectItem value="pending">Pending</SelectItem>
-          <SelectItem value="completed">Completed</SelectItem>
+          <SelectItem value="all">{statusLabels.all}</SelectItem>
+          <SelectItem value="pending">{statusLabels.pending}</SelectItem>
+          <SelectItem value="completed">{statusLabels.completed}</SelectItem>
         </SelectContent>
       </Select>
 

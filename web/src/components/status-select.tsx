@@ -5,7 +5,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import type { TaskStatus } from "@/types/api";
 
@@ -30,7 +29,7 @@ export function StatusSelect({ value, onChange, disabled }: StatusSelectProps) {
       disabled={disabled}
     >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select status" />
+        <span className="flex flex-1 items-center text-left">{statusLabels[value]}</span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value="pending">{statusLabels.pending}</SelectItem>

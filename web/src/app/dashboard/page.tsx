@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useTasksQuery } from "@/lib/queries/tasks";
-import { useWorkersQuery } from "@/lib/queries/workers";
+import { useDashboardQuery } from "@/lib/queries/dashboard";
 import { useAuthStore } from "@/store/auth-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -14,11 +13,7 @@ export default function DashboardPage() {
 
   const isManager = Boolean(token && user?.role === "manager");
 
-  // small stats queries
-  const totalTasksQuery = useTasksQuery({ page: 1, per_page: 1 }, isManager);
-  const pendingTasksQuery = useTasksQuery({ page: 1, per_page: 1, status: "pending" }, isManager);
-  const completedTasksQuery = useTasksQuery({ page: 1, per_page: 1, status: "completed" }, isManager);
-  const workersQuery = useWorkersQuery({ page: 1, per_page: 1 }, isManager);
+  const dashboardQuery = useDashboardQuery(isManager);
 
   useEffect(() => {
     if (!token) return;
@@ -32,10 +27,11 @@ export default function DashboardPage() {
     return null;
   }
 
-  const totalTasks = totalTasksQuery.data?.pagination.total ?? 0;
-  const pendingTasks = pendingTasksQuery.data?.pagination.total ?? 0;
-  const completedTasks = completedTasksQuery.data?.pagination.total ?? 0;
-  const totalWorkers = workersQuery.data?.pagination.total ?? 0;
+  const summary = dashboardQuery.data;
+  const totalTasks = summary?.tasks.total ?? 0;
+  const pendingTasks = summary?.tasks.pending ?? 0;
+  const completedTasks = summary?.tasks.completed ?? 0;
+  const totalWorkers = summary?.workers.total ?? 0;
 
   return (
     <main className="app-gradient min-h-screen p-4 md:p-8">

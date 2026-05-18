@@ -37,6 +37,17 @@ export interface ApiEnvelope<T> {
   message?: string;
 }
 
+export interface DashboardSummary {
+  tasks: {
+    total: number;
+    pending: number;
+    completed: number;
+  };
+  workers: {
+    total: number;
+  };
+}
+
 export interface TaskListParams {
   search?: string;
   status?: TaskStatus;

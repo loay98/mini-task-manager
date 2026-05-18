@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiMessage } from "@/lib/api-error";
@@ -30,15 +30,25 @@ import { TableSkeleton } from "@/components/skeletons";
 
 const TASKS_PER_PAGE = 10;
 
+function parseStatusFilter(value: string | null): TaskStatusFilter {
+  if (value === "pending" || value === "completed") {
+    return value;
+  }
+
+  return "all";
+}
+
 export default function TasksPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { token, user, logout } = useAuthStore();
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<TaskAssigneeFilter>("all");
   const [page, setPage] = useState(1);
   const [actingTaskId, setActingTaskId] = useState<number | null>(null);
+  const statusFilter = parseStatusFilter(searchParams.get("status"));
 
   const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 800);
 
@@ -90,6 +100,20 @@ export default function TasksPage() {
 
   const handleCreateTask = async (payload: CreateTaskPayload) => {
     await createTask.mutateAsync(payload);
+    setPage(1);
+  };
+
+  const handleStatusChange = (value: TaskStatusFilter) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    if (value === "all") {
+      nextParams.delete("status");
+    } else {
+      nextParams.set("status", value);
+    }
+
+    const queryString = nextParams.toString();
+    router.replace(queryString ? `${pathname}?${queryString}` : pathname);
     setPage(1);
   };
 
@@ -156,10 +180,7 @@ export default function TasksPage() {
                 setPage(1);
               }}
               status={statusFilter}
-              onStatusChange={(value) => {
-                setStatusFilter(value);
-                setPage(1);
-              }}
+              onStatusChange={handleStatusChange}
               assignee={assigneeFilter}
               onAssigneeChange={(value) => {
                 setAssigneeFilter(value);
