@@ -41,7 +41,7 @@ class TaskController extends BaseApiController
         $perPage = (int) ($validated['per_page'] ?? 10);
 
         $tasks = Task::query()
-            ->with('assignee:id,name,email,role')
+            ->with('assignee:id,name,email,role', 'assignedBy:id,name,email,role')
             ->when(filled($validated['search'] ?? null), function ($query) use ($validated): void {
                 $search = $validated['search'];
                 // If search is purely numeric, search by ID
@@ -87,8 +87,11 @@ class TaskController extends BaseApiController
             }
         }
 
-        $task = Task::query()->create($payload);
-        $task->load('assignee:id,name,email,role');
+        $task = Task::query()->create([
+            ...$payload,
+            'assigned_by' => $request->user()->id,
+        ]);
+        $task->load('assignee:id,name,email,role', 'assignedBy:id,name,email,role');
 
         return $this->success(new TaskResource($task), 'Task created successfully.', 201);
     }
@@ -111,7 +114,7 @@ class TaskController extends BaseApiController
         }
 
         $task->update($payload);
-        $task->load('assignee:id,name,email,role');
+        $task->load('assignee:id,name,email,role', 'assignedBy:id,name,email,role');
 
         return $this->success(new TaskResource($task), 'Task updated successfully.');
     }

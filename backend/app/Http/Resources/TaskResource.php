@@ -18,6 +18,7 @@ class TaskResource extends JsonResource
             'status' => $this->status,
             'assignee_id' => $this->assignee_id,
             'assignee' => new UserResource($this->whenLoaded('assignee')),
+            'assigned_by' => new UserResource($this->whenLoaded('assignedBy')),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

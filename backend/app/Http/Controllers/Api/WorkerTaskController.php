@@ -12,7 +12,7 @@ class WorkerTaskController extends BaseApiController
     public function index(Request $request)
     {
         $query = Task::query()
-            ->with('assignee:id,name,email,role')
+            ->with('assignee:id,name,email,role', 'assignedBy:id,name,email,role')
             ->where('assignee_id', $request->user()->id);
 
         // Filter by status if provided
@@ -48,7 +48,7 @@ class WorkerTaskController extends BaseApiController
             'status' => TaskStatus::COMPLETED->value,
         ]);
 
-        $task->load('assignee:id,name,email,role');
+        $task->load('assignee:id,name,email,role', 'assignedBy:id,name,email,role');
 
         return $this->success(new TaskResource($task), 'Task marked as completed.');
     }
