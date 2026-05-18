@@ -33,7 +33,18 @@ class WorkerTaskController extends BaseApiController
             }
         }
 
-        $tasks = $query->latest()->paginate((int) $request->integer('per_page', 10));
+        // Sorting
+        $sortBy = $request->string('sort_by')->toString();
+        $sortOrder = $request->string('sort_order')->toString() === 'desc' ? 'desc' : 'asc';
+
+        $allowedSorts = ['id', 'title', 'created_at', 'updated_at', 'due_date'];
+        if ($sortBy && in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->latest();
+        }
+
+        $tasks = $query->paginate((int) $request->integer('per_page', 10));
 
         return $this->success([
             'items' => TaskResource::collection($tasks->items()),

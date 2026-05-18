@@ -14,6 +14,7 @@ class Task extends Model
         'status',
         'assignee_id',
         'assigned_by',
+        'due_date',
     ];
 
     public function assignee()
