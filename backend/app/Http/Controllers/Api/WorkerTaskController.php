@@ -21,6 +21,18 @@ class WorkerTaskController extends BaseApiController
             $query->where('status', $status);
         }
 
+        // Search by ID or title if provided
+        $search = $request->string('search')->toString();
+        if ($search) {
+            // If search is purely numeric, search by ID
+            if (ctype_digit($search)) {
+                $query->where('id', (int) $search);
+            } else {
+                // Otherwise search by title
+                $query->where('title', 'like', "%{$search}%");
+            }
+        }
+
         $tasks = $query->latest()->paginate((int) $request->integer('per_page', 10));
 
         return $this->success([
