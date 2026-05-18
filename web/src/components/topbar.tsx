@@ -51,11 +51,13 @@ export function Topbar() {
           ) : null}
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            Logout
-          </Button>
-        </div>
+        {user ? (
+          <div className="flex items-center gap-3">
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              Logout
+            </Button>
+          </div>
+        ) : null}
       </div>
     </header>
   );

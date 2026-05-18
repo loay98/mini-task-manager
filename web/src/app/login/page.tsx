@@ -51,6 +51,8 @@ export default function LoginPage() {
       }
 
       setAuth(data.token, data.user);
+      setEmail("");
+      setPassword("");
       router.replace("/dashboard");
     } catch (err) {
       setError(getApiMessage(err, "Unable to login. Please verify credentials."));
@@ -70,8 +72,9 @@ export default function LoginPage() {
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                name="login-email"
                 type="email"
-                autoComplete="off"
+                autoComplete="new-password"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="manager@test.com"
@@ -82,8 +85,9 @@ export default function LoginPage() {
               <Label htmlFor="password">Password</Label>
               <Input
                 id="password"
+                name="login-password"
                 type="password"
-                autoComplete="off"
+                autoComplete="new-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="password"
