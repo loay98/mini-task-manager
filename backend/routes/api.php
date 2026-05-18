@@ -26,6 +26,7 @@ Route::middleware('auth:api')->group(function (): void {
 
     Route::middleware('role:worker')->group(function (): void {
         Route::get('/my-tasks', [WorkerTaskController::class, 'index']);
+        Route::get('/my-tasks/count', [WorkerTaskController::class, 'counts']);
         Route::get('/my-tasks/counts', [WorkerTaskController::class, 'counts']);
         Route::patch('/tasks/{task}/complete', [WorkerTaskController::class, 'complete']);
     });
