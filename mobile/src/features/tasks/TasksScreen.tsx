@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,7 @@ export function TasksScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const isLoggingOut = useAuthStore((state) => state.isLoggingOut);
   const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -39,21 +40,18 @@ export function TasksScreen() {
   const tasksCountQuery = useTasksCountQuery();
   const completeTaskMutation = useCompleteTaskMutation();
 
-  const tasks = useMemo(
-    () => {
-      const allTasks = tasksQuery.data?.pages.flatMap((page) => page.items) ?? [];
-      // Deduplicate by id to prevent duplicate keys
-      const seen = new Set<number>();
-      return allTasks.filter((task) => {
-        if (seen.has(task.id)) {
-          return false;
-        }
-        seen.add(task.id);
-        return true;
-      });
-    },
-    [tasksQuery.data]
-  );
+  const tasks = useMemo(() => {
+    const allTasks = (tasksQuery.data?.pages as Array<{ items: Task[] }> | undefined)?.flatMap((page) => page.items) ?? [];
+    // Deduplicate by id to prevent duplicate keys
+    const seen = new Set<number>();
+    return allTasks.filter((task) => {
+      if (seen.has(task.id)) {
+        return false;
+      }
+      seen.add(task.id);
+      return true;
+    });
+  }, [tasksQuery.data]);
 
   // No client-side filtering - all filtering is done by the API
 
@@ -93,13 +91,13 @@ export function TasksScreen() {
     }
   }, [tasksQuery.error, lastErrorSeen]);
 
-  const onLogout = async () => {
+  const onLogout = useCallback(async () => {
     await logout();
     queryClient.removeQueries({ queryKey: tasksQueryKey(statusFilter, searchText.trim()) });
     queryClient.removeQueries({ queryKey: tasksCountsQueryKey });
-  };
+  }, [logout, queryClient, statusFilter, searchText.trim()]);
 
-  const onComplete = async (taskId: number) => {
+  const onComplete = useCallback(async (taskId: number) => {
     Alert.alert(
       "Mark as Completed?",
       "Are you sure you want to mark this task as completed?",
@@ -132,13 +130,30 @@ export function TasksScreen() {
         },
       ]
     );
-  };
+  }, [completeTaskMutation]);
 
   const topError = tasksQuery.error
     ? getErrorMessage(tasksQuery.error, "Unable to load tasks.")
     : completeTaskMutation.error
       ? getErrorMessage(completeTaskMutation.error, "Unable to update task.")
       : "";
+
+  const renderTaskCard = useCallback(
+    ({ item }: { item: Task }) => (
+      <TaskCard
+        task={item}
+        disabled={completeTaskMutation.isPending}
+        isCompleting={completingTaskId === item.id}
+        onComplete={onComplete}
+      />
+    ),
+    [completeTaskMutation.isPending, completingTaskId, onComplete]
+  );
+
+  const keyExtractor = useCallback(
+    (item: Task) => `task-${item.id}-${statusFilter}`,
+    [statusFilter]
+  );
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
@@ -148,8 +163,12 @@ export function TasksScreen() {
           <Text style={styles.heading}>My Tasks</Text>
           <Text style={styles.subheading}>{user?.name ?? "Worker"}</Text>
         </View>
-        <Pressable onPress={onLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]}>
-          <Text style={styles.logoutLabel}>Logout</Text>
+        <Pressable onPress={onLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]} disabled={isLoggingOut}>
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text style={styles.logoutLabel}>Logout</Text>
+          )}
         </Pressable>
       </View>
 
@@ -201,19 +220,12 @@ export function TasksScreen() {
             key={`tasks-${statusFilter}`}
             data={tasks}
             extraData={statusFilter}
-            keyExtractor={(item) => `task-${item.id}-${statusFilter}`}
+            keyExtractor={keyExtractor}
             contentContainerStyle={[
               styles.listContent,
               tasks.length === 0 && styles.emptyListContent,
             ]}
-            renderItem={({ item }) => (
-              <TaskCard
-                task={item}
-                disabled={completeTaskMutation.isPending}
-                isCompleting={completingTaskId === item.id}
-                onComplete={onComplete}
-              />
-            )}
+            renderItem={renderTaskCard}
             refreshControl={
               <RefreshControl
                 refreshing={tasksQuery.isRefetching}
@@ -285,14 +297,14 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#fecaca",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#fef2f2",
   },
   logoutLabel: {
-    color: "#374151",
+    color: "#dc2626",
     fontWeight: "700",
     fontSize: 13,
   },

@@ -21,6 +21,8 @@ export function useTasksQuery(status?: string, search?: string) {
       const { current_page, last_page } = lastPage.pagination;
       return current_page < last_page ? current_page + 1 : undefined;
     },
+    staleTime: 30000, // 30 seconds before data is considered stale
+    gcTime: 300000, // 5 minutes cache (TanStack Query v5 uses gcTime instead of cacheTime)
   });
 }
 
@@ -29,6 +31,7 @@ export function useTasksCountQuery() {
     queryKey: tasksCountsQueryKey,
     queryFn: fetchTaskCounts,
     refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 25000, // 25 seconds before data is considered stale
   });
 }
 

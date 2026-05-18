@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Task } from "../types/task";
 
@@ -21,7 +22,7 @@ function formatDateTime(dateValue?: string | null): string | null {
   return parsed.toLocaleString();
 }
 
-export function TaskCard({
+export const TaskCard = memo(function TaskCard({
   task,
   disabled = false,
   isCompleting = false,
@@ -69,7 +70,7 @@ export function TaskCard({
       </Pressable>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {
