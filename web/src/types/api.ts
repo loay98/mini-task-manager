@@ -18,14 +18,35 @@ export interface Task {
   updated_at?: string;
 }
 
+export interface PaginationMeta {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
-  meta?: Record<string, unknown>;
+  pagination: PaginationMeta;
 }
 
 export interface ApiEnvelope<T> {
   data: T;
   message?: string;
+}
+
+export interface TaskListParams {
+  search?: string;
+  status?: TaskStatus;
+  assignee_id?: number | null;
+  page?: number;
+  per_page?: number;
+}
+
+export interface WorkerListParams {
+  search?: string;
+  page?: number;
+  per_page?: number;
 }
 
 export interface LoginPayload {

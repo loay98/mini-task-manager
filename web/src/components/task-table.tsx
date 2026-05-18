@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/table";
 import { StatusSelect } from "@/components/status-select";
 import { TaskStatusBadge } from "@/components/task-status-badge";
-import { WorkerSelect } from "@/components/worker-select";
-import type { Task, TaskStatus, UpdateTaskPayload, User } from "@/types/api";
+import { WorkerCombobox } from "@/components/worker-combobox";
+import type { Task, TaskStatus, UpdateTaskPayload } from "@/types/api";
 
 const editSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -26,13 +26,19 @@ const editSchema = z.object({
 
 interface TaskTableProps {
   tasks: Task[];
-  workers: User[];
   onUpdate: (id: number, payload: UpdateTaskPayload) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   actingTaskId?: number | null;
+  emptyMessage?: string;
 }
 
-export function TaskTable({ tasks, workers, onUpdate, onDelete, actingTaskId = null }: TaskTableProps) {
+export function TaskTable({
+  tasks,
+  onUpdate,
+  onDelete,
+  actingTaskId = null,
+  emptyMessage = "No tasks yet. Create your first task above.",
+}: TaskTableProps) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -41,7 +47,7 @@ export function TaskTable({ tasks, workers, onUpdate, onDelete, actingTaskId = n
   const [editError, setEditError] = useState("");
 
   if (!tasks.length) {
-    return <p className="text-sm text-muted-foreground">No tasks yet. Create your first task above.</p>;
+    return <p className="text-sm text-muted-foreground">{emptyMessage}</p>;
   }
 
   const startEdit = (task: Task) => {
@@ -109,11 +115,11 @@ export function TaskTable({ tasks, workers, onUpdate, onDelete, actingTaskId = n
                       disabled={isActing}
                       aria-label="Task title"
                     />
-                    <WorkerSelect
-                      workers={workers}
+                    <WorkerCombobox
                       value={editAssigneeId}
                       onChange={setEditAssigneeId}
                       disabled={isActing}
+                      selectedLabel={task.assignee?.name}
                     />
                     <StatusSelect value={editStatus} onChange={setEditStatus} disabled={isActing} />
                   </div>

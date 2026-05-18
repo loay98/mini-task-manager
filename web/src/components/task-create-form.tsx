@@ -5,8 +5,7 @@ import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { WorkerSelect } from "@/components/worker-select";
-import type { User } from "@/types/api";
+import { WorkerCombobox } from "@/components/worker-combobox";
 
 const schema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -14,12 +13,11 @@ const schema = z.object({
 });
 
 interface TaskCreateFormProps {
-  workers: User[];
   onSubmit: (input: { title: string; assignee_id?: number }) => Promise<void>;
   loading?: boolean;
 }
 
-export function TaskCreateForm({ workers, onSubmit, loading = false }: TaskCreateFormProps) {
+export function TaskCreateForm({ onSubmit, loading = false }: TaskCreateFormProps) {
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
   const [error, setError] = useState("");
@@ -53,7 +51,7 @@ export function TaskCreateForm({ workers, onSubmit, loading = false }: TaskCreat
           disabled={loading}
         />
       </div>
-      <WorkerSelect workers={workers} value={assigneeId} onChange={setAssigneeId} disabled={loading} />
+      <WorkerCombobox value={assigneeId} onChange={setAssigneeId} disabled={loading} />
       <div className="md:col-span-3 flex items-center gap-3">
         <Button type="submit" disabled={loading}>
           {loading ? (
