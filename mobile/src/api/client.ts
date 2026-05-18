@@ -1,10 +1,18 @@
 import axios from "axios";
-import { useAuthStore } from "../store/auth-store";
+import { useAuthStore } from "../store/authStore";
+
+const apiBaseUrl = process.env.EXPO_PUBLIC_API_URL;
+
+if (!apiBaseUrl) {
+  throw new Error("Missing EXPO_PUBLIC_API_URL. Add it to the .env file.");
+}
 
 export const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
+  baseURL: apiBaseUrl,
+  timeout: 15_000,
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
   },
 });
 
@@ -13,6 +21,7 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
@@ -22,6 +31,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       await useAuthStore.getState().logout();
     }
+
     return Promise.reject(error);
   }
 );
