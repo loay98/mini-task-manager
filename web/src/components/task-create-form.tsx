@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { WorkerSelect } from "@/components/worker-select";
 import type { User } from "@/types/api";
 
 const schema = z.object({
@@ -20,8 +21,8 @@ interface TaskCreateFormProps {
 
 export function TaskCreateForm({ workers, onSubmit, loading = false }: TaskCreateFormProps) {
   const [title, setTitle] = useState("");
-  const [assigneeId, setAssigneeId] = useState<string>("");
-  const [error, setError] = useState<string>("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,21 +53,19 @@ export function TaskCreateForm({ workers, onSubmit, loading = false }: TaskCreat
           disabled={loading}
         />
       </div>
-      <div>
-        <Select value={assigneeId} onChange={(event) => setAssigneeId(event.target.value)} disabled={loading}>
-          <option value="">Unassigned</option>
-          {workers.map((worker) => (
-            <option key={worker.id} value={worker.id}>
-              {worker.name}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <WorkerSelect workers={workers} value={assigneeId} onChange={setAssigneeId} disabled={loading} />
       <div className="md:col-span-3 flex items-center gap-3">
         <Button type="submit" disabled={loading}>
-          {loading ? "Creating..." : "Create Task"}
+          {loading ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Creating...
+            </>
+          ) : (
+            "Create Task"
+          )}
         </Button>
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
       </div>
     </form>
   );

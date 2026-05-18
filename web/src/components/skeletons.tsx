@@ -1,11 +1,10 @@
-"use client";
-import React from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function TableSkeleton({ rows = 4 }: { rows?: number }) {
   return (
     <div className="space-y-2">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-md bg-slate-100 p-3" />
+      {Array.from({ length: rows }).map((_, index) => (
+        <Skeleton key={index} className="h-12 w-full" />
       ))}
     </div>
   );

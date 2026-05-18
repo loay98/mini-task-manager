@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
@@ -9,6 +10,7 @@ import type { ApiEnvelope, LoginResponse } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -68,21 +70,36 @@ export default function LoginPage() {
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <Input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="manager@test.com" />
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="manager@test.com"
+                disabled={loading}
+              />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
+              <Label htmlFor="password">Password</Label>
               <Input
+                id="password"
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="password"
+                disabled={loading}
               />
             </div>
-            {error ? <p className="text-sm text-danger">{error}</p> : null}
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Signing in..." : "Sign in"}
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign in"
+              )}
             </Button>
           </form>
         </CardContent>
@@ -90,4 +107,3 @@ export default function LoginPage() {
     </main>
   );
 }
-

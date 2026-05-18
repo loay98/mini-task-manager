@@ -44,3 +44,9 @@ export interface CreateTaskPayload {
   title: string;
   assignee_id?: number;
 }
+
+export interface UpdateTaskPayload {
+  title?: string;
+  status?: TaskStatus;
+  assignee_id?: number | null;
+}
