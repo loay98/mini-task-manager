@@ -9,14 +9,14 @@ import { fetchMyTasksPage, fetchTaskCounts, markTaskCompleted } from "../../api/
 import type { PaginatedResponse } from "../../types/api";
 import type { Task } from "../../types/task";
 
-export const tasksQueryKey = ["my-tasks"] as const;
+export const tasksQueryKey = (status?: string) => ["my-tasks", { status }] as const;
 export const tasksCountsQueryKey = ["my-tasks-counts"] as const;
 
-export function useTasksQuery() {
+export function useTasksQuery(status?: string) {
   return useInfiniteQuery({
-    queryKey: tasksQueryKey,
+    queryKey: tasksQueryKey(status),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => fetchMyTasksPage(pageParam),
+    queryFn: ({ pageParam }) => fetchMyTasksPage(pageParam, status),
     getNextPageParam: (lastPage) => {
       const { current_page, last_page } = lastPage.pagination;
       return current_page < last_page ? current_page + 1 : undefined;
@@ -39,14 +39,17 @@ export function useCompleteTaskMutation() {
     mutationFn: markTaskCompleted,
 
     onMutate: async (taskId: number) => {
-      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
+      // Cancel all tasks queries to handle any status filter
+      await queryClient.cancelQueries({ queryKey: ["my-tasks"] });
 
+      // Store previous data for all status variants
       const previousTasks = queryClient.getQueryData<
         InfiniteData<PaginatedResponse<Task>, number>
-      >(tasksQueryKey);
+      >(["my-tasks"]);
 
+      // Optimistically update all tasks queries
       queryClient.setQueryData<InfiniteData<PaginatedResponse<Task>, number>>(
-        tasksQueryKey,
+        ["my-tasks"],
         (current) => {
           if (!current) {
             return current;
@@ -74,12 +77,12 @@ export function useCompleteTaskMutation() {
 
     onError: (_error, _taskId, context) => {
       if (context?.previousTasks) {
-        queryClient.setQueryData(tasksQueryKey, context.previousTasks);
+        queryClient.setQueryData(["my-tasks"], context.previousTasks);
       }
     },
 
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
       await queryClient.invalidateQueries({ queryKey: tasksCountsQueryKey });
     },
   });

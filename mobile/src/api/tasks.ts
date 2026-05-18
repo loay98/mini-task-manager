@@ -8,11 +8,12 @@ export interface TaskCounts {
   completed: number;
 }
 
-export async function fetchMyTasksPage(pageParam = 1): Promise<PaginatedResponse<Task>> {
+export async function fetchMyTasksPage(pageParam = 1, status?: string): Promise<PaginatedResponse<Task>> {
   const response = await api.get<ApiEnvelope<PaginatedResponse<Task>>>("/my-tasks", {
     params: {
       page: pageParam,
       per_page: 10,
+      ...(status && status !== "all" ? { status } : {}),
     },
   });
   return response.data.data;

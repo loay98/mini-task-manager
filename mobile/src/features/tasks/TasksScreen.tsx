@@ -35,7 +35,7 @@ export function TasksScreen() {
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
   const [lastErrorSeen, setLastErrorSeen] = useState<string | null>(null);
 
-  const tasksQuery = useTasksQuery();
+  const tasksQuery = useTasksQuery(statusFilter);
   const tasksCountQuery = useTasksCountQuery();
   const completeTaskMutation = useCompleteTaskMutation();
 
@@ -54,15 +54,15 @@ export function TasksScreen() {
         return false;
       }
 
-      const normalizedStatus = task.status.toLowerCase();
       // Keep showing the task being completed even if its status changed
       if (completingTaskId === task.id) {
         seenIds.add(task.id);
         return true;
       }
 
-      const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
-      if (!matchesStatus) {
+      // Status filtering is now handled by the API, but we still need to check
+      // if the task matches the current status filter (in case of stale data)
+      if (statusFilter !== "all" && task.status.toLowerCase() !== statusFilter) {
         return false;
       }
 
@@ -73,7 +73,7 @@ export function TasksScreen() {
 
       const inTitle = task.title.toLowerCase().includes(query);
       const inDescription = task.description?.toLowerCase().includes(query) ?? false;
-      const inStatus = normalizedStatus.includes(query);
+      const inStatus = task.status.toLowerCase().includes(query);
       const matches = inTitle || inDescription || inStatus;
       if (matches) {
         seenIds.add(task.id);
@@ -120,7 +120,7 @@ export function TasksScreen() {
 
   const onLogout = async () => {
     await logout();
-    queryClient.removeQueries({ queryKey: tasksQueryKey });
+    queryClient.removeQueries({ queryKey: tasksQueryKey(statusFilter) });
     queryClient.removeQueries({ queryKey: tasksCountsQueryKey });
   };
 
