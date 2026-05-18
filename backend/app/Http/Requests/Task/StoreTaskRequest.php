@@ -22,7 +22,7 @@ class StoreTaskRequest extends FormRequest
             'title' => ['required', 'string', 'min:3', 'max:255'],
             'status' => ['sometimes', Rule::in([TaskStatus::PENDING->value, TaskStatus::COMPLETED->value])],
             'assignee_id' => ['nullable', 'integer', 'exists:users,id'],
-            'due_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date_format:Y-m-d\TH:i'],
         ];
     }
 }

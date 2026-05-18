@@ -16,6 +16,8 @@ class WorkersController extends BaseApiController
     {
         $validated = $request->validated();
         $perPage = (int) ($validated['per_page'] ?? 10);
+        $sortBy = $validated['sort_by'] ?? 'name';
+        $sortOrder = $validated['sort_order'] ?? 'asc';
 
         $workers = User::query()
             ->where('role', UserRole::WORKER->value)
@@ -33,7 +35,11 @@ class WorkersController extends BaseApiController
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('name')
+            ->when(in_array($sortBy, ['id', 'name', 'created_at'], true), function ($query) use ($sortBy, $sortOrder): void {
+                $query->orderBy($sortBy, $sortOrder);
+            }, function ($query): void {
+                $query->orderBy('name', 'asc');
+            })
             ->paginate($perPage);
 
         return $this->paginatedResponse($workers, UserResource::class, 'Workers fetched successfully.');

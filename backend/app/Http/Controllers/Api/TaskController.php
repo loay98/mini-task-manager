@@ -21,7 +21,7 @@ class TaskController extends BaseApiController
 
         $workers = User::query()
             ->where('role', UserRole::WORKER->value)
-            ->select('id', 'name', 'email', 'role')
+            ->select('id', 'name', 'email', 'role', 'created_at')
             ->when(filled($validated['search'] ?? null), function ($query) use ($validated): void {
                 $search = $validated['search'];
                 $query->where(function ($builder) use ($search): void {
@@ -29,7 +29,17 @@ class TaskController extends BaseApiController
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
-            ->orderBy('name')
+            ->when(array_key_exists('sort_by', $validated) && $validated['sort_by'] !== '', function ($query) use ($validated): void {
+                $sortBy = $validated['sort_by'];
+                $sortOrder = $validated['sort_order'] ?? 'asc';
+                // Sanitize sort column to allowed list to avoid SQL injection
+                if (! in_array($sortBy, ['id', 'name', 'created_at'], true)) {
+                    $sortBy = 'name';
+                }
+                $query->orderBy($sortBy, $sortOrder);
+            }, function ($query) {
+                $query->orderBy('name', 'asc');
+            })
             ->paginate($perPage);
 
         return $this->paginatedResponse($workers, UserResource::class, 'Workers fetched successfully.');
@@ -64,7 +74,16 @@ class TaskController extends BaseApiController
             ->when(array_key_exists('assignee_id', $validated), function ($query) use ($validated): void {
                 $query->where('assignee_id', $validated['assignee_id']);
             })
-            ->latest()
+            ->when(array_key_exists('assigned_by', $validated), function ($query) use ($validated): void {
+                $query->where('assigned_by', $validated['assigned_by']);
+            })
+            ->when(filled($validated['sort_by'] ?? null), function ($query) use ($validated): void {
+                $sortBy = $validated['sort_by'];
+                $sortOrder = $validated['sort_order'] ?? 'desc';
+                $query->orderBy($sortBy, $sortOrder);
+            }, function ($query) {
+                $query->latest();
+            })
             ->paginate($perPage);
 
         return $this->paginatedResponse($tasks, TaskResource::class, 'Tasks fetched successfully.');
