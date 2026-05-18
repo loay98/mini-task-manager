@@ -19,13 +19,8 @@ export async function fetchMyTasksPage(pageParam = 1): Promise<PaginatedResponse
 }
 
 export async function fetchTaskCounts(): Promise<TaskCounts> {
-  try {
     const response = await api.get<ApiEnvelope<TaskCounts>>("/my-tasks/counts");
     return response.data.data;
-  } catch {
-    const fallbackResponse = await api.get<ApiEnvelope<TaskCounts>>("/my-tasks/count");
-    return fallbackResponse.data.data;
-  }
 }
 
 export async function markTaskCompleted(taskId: number): Promise<Task> {

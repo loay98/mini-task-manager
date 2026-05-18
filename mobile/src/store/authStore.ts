@@ -1,6 +1,6 @@
-import * as SecureStore from "expo-secure-store";
 import { create } from "zustand";
 import type { User } from "../types/auth";
+import { storage } from "./storage";
 
 const TOKEN_KEY = "task_manager_token";
 const USER_KEY = "task_manager_user";
@@ -22,8 +22,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   hydrate: async () => {
     try {
       const [token, userRaw] = await Promise.all([
-        SecureStore.getItemAsync(TOKEN_KEY),
-        SecureStore.getItemAsync(USER_KEY),
+        storage.getItem(TOKEN_KEY),
+        storage.getItem(USER_KEY),
       ]);
 
       set({
@@ -38,8 +38,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   login: async (token, user) => {
     await Promise.all([
-      SecureStore.setItemAsync(TOKEN_KEY, token),
-      SecureStore.setItemAsync(USER_KEY, JSON.stringify(user)),
+      storage.setItem(TOKEN_KEY, token),
+      storage.setItem(USER_KEY, JSON.stringify(user)),
     ]);
 
     set({ token, user });
@@ -47,8 +47,8 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   logout: async () => {
     await Promise.all([
-      SecureStore.deleteItemAsync(TOKEN_KEY),
-      SecureStore.deleteItemAsync(USER_KEY),
+      storage.removeItem(TOKEN_KEY),
+      storage.removeItem(USER_KEY),
     ]);
 
     set({ token: null, user: null });
