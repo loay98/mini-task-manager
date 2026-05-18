@@ -1,21 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import { api } from "@/lib/api";
-import { buildListParams } from "@/lib/api-params";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { getApiMessage } from "@/lib/api-error";
+import {
+  useCreateTaskMutation,
+  useDeleteTaskMutation,
+  useTasksQuery,
+  useUpdateTaskMutation,
+} from "@/lib/queries/tasks";
 import { useAuthStore } from "@/store/auth-store";
-import type {
-  ApiEnvelope,
-  CreateTaskPayload,
-  PaginatedResponse,
-  PaginationMeta,
-  Task,
-  UpdateTaskPayload,
-} from "@/types/api";
+import type { CreateTaskPayload, UpdateTaskPayload } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,143 +30,76 @@ import { TableSkeleton } from "@/components/skeletons";
 
 const TASKS_PER_PAGE = 10;
 
-const defaultPagination: PaginationMeta = {
-  current_page: 1,
-  last_page: 1,
-  per_page: TASKS_PER_PAGE,
-  total: 0,
-};
-
-function getApiMessage(error: unknown, fallback: string): string {
-  if (error && typeof error === "object" && "response" in error) {
-    const response = (error as { response?: { data?: { message?: string } } }).response;
-    if (response?.data?.message) {
-      return response.data.message;
-    }
-  }
-
-  return fallback;
-}
-
 export default function DashboardPage() {
   const router = useRouter();
   const { token, user, logout } = useAuthStore();
-
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [pagination, setPagination] = useState<PaginationMeta>(defaultPagination);
-  const [tasksLoading, setTasksLoading] = useState(true);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [actingTaskId, setActingTaskId] = useState<number | null>(null);
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<TaskStatusFilter>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<TaskAssigneeFilter>("all");
   const [page, setPage] = useState(1);
+  const [actingTaskId, setActingTaskId] = useState<number | null>(null);
 
-  const debouncedSearch = useDebouncedValue(search, 300);
+  const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 300);
 
+  const isManager = Boolean(token && user?.role === "manager");
+
+  const {
+    data: tasksData,
+    isLoading: tasksLoading,
+    isFetching: tasksFetching,
+    isError,
+    error,
+  } = useTasksQuery(
+    {
+      page,
+      per_page: TASKS_PER_PAGE,
+      search: debouncedSearch || undefined,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      assignee_id:
+        assigneeFilter === "all"
+          ? undefined
+          : assigneeFilter === "unassigned"
+            ? null
+            : Number(assigneeFilter),
+    },
+    isManager
+  );
+
+  const createTask = useCreateTaskMutation();
+  const updateTask = useUpdateTaskMutation();
+  const deleteTask = useDeleteTaskMutation();
+
+  const tasks = tasksData?.items ?? [];
+  const pagination = tasksData?.pagination ?? {
+    current_page: 1,
+    last_page: 1,
+    per_page: TASKS_PER_PAGE,
+    total: 0,
+  };
+
+  const isSearchPending = isDebouncing || (tasksFetching && !tasksLoading);
   const hasActiveFilters =
     debouncedSearch.length > 0 || statusFilter !== "all" || assigneeFilter !== "all";
 
-  const fetchTasks = useCallback(async () => {
-    try {
-      setTasksLoading(true);
-
-      const params = buildListParams({
-        page,
-        per_page: TASKS_PER_PAGE,
-        search: debouncedSearch || undefined,
-        status: statusFilter === "all" ? undefined : statusFilter,
-        assignee_id:
-          assigneeFilter === "all"
-            ? undefined
-            : assigneeFilter === "unassigned"
-              ? null
-              : Number(assigneeFilter),
-      });
-
-      const response = await api.get<ApiEnvelope<PaginatedResponse<Task>>>("/tasks", { params });
-
-      setTasks(response.data.data.items);
-      setPagination(response.data.data.pagination);
-    } catch (error) {
-      toast.error(getApiMessage(error, "Failed to fetch tasks."));
-    } finally {
-      setTasksLoading(false);
-    }
-  }, [page, debouncedSearch, statusFilter, assigneeFilter]);
-
   useEffect(() => {
-    if (!token || user?.role !== "manager") {
+    if (!token) return;
+    if (user?.role !== "manager") {
       router.replace("/login");
-      return;
     }
-
-    let cancelled = false;
-
-    const loadTasks = async () => {
-      try {
-        setTasksLoading(true);
-
-        const params = buildListParams({
-          page,
-          per_page: TASKS_PER_PAGE,
-          search: debouncedSearch || undefined,
-          status: statusFilter === "all" ? undefined : statusFilter,
-          assignee_id:
-            assigneeFilter === "all"
-              ? undefined
-              : assigneeFilter === "unassigned"
-                ? null
-                : Number(assigneeFilter),
-        });
-
-        const response = await api.get<ApiEnvelope<PaginatedResponse<Task>>>("/tasks", { params });
-
-        if (cancelled) return;
-
-        setTasks(response.data.data.items);
-        setPagination(response.data.data.pagination);
-      } catch (error) {
-        if (!cancelled) {
-          toast.error(getApiMessage(error, "Failed to fetch tasks."));
-        }
-      } finally {
-        if (!cancelled) {
-          setTasksLoading(false);
-        }
-      }
-    };
-
-    void loadTasks();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [token, user, router, page, debouncedSearch, statusFilter, assigneeFilter]);
+  }, [token, user, router]);
 
   const handleCreateTask = async (payload: CreateTaskPayload) => {
-    try {
-      setSubmitLoading(true);
-      const response = await api.post<ApiEnvelope<Task>>("/tasks", payload);
-      await fetchTasks();
-      toast.success(response.data.message ?? "Task created successfully.");
-    } catch (error) {
-      toast.error(getApiMessage(error, "Unable to create task."));
-    } finally {
-      setSubmitLoading(false);
-    }
+    await createTask.mutateAsync(payload);
+    setPage(1);
   };
 
   const handleUpdateTask = async (id: number, payload: UpdateTaskPayload) => {
     try {
       setActingTaskId(id);
-      const response = await api.patch<ApiEnvelope<Task>>(`/tasks/${id}`, payload);
-      await fetchTasks();
-      toast.success(response.data.message ?? "Task updated successfully.");
-    } catch (error) {
-      toast.error(getApiMessage(error, "Unable to update task."));
-      throw error;
+      await updateTask.mutateAsync({ id, payload });
+    } catch {
+      throw new Error("Update failed");
     } finally {
       setActingTaskId(null);
     }
@@ -178,12 +108,9 @@ export default function DashboardPage() {
   const handleDeleteTask = async (id: number) => {
     try {
       setActingTaskId(id);
-      const response = await api.delete<ApiEnvelope<null>>(`/tasks/${id}`);
-      await fetchTasks();
-      toast.success(response.data.message ?? "Task deleted successfully.");
-    } catch (error) {
-      toast.error(getApiMessage(error, "Unable to delete task."));
-      throw error;
+      await deleteTask.mutateAsync(id);
+    } catch {
+      throw new Error("Delete failed");
     } finally {
       setActingTaskId(null);
     }
@@ -193,6 +120,10 @@ export default function DashboardPage() {
     logout();
     router.replace("/login");
   };
+
+  if (!isManager) {
+    return null;
+  }
 
   return (
     <main className="app-gradient min-h-screen p-4 md:p-8">
@@ -208,24 +139,27 @@ export default function DashboardPage() {
             </CardAction>
           </CardHeader>
           <CardContent>
-            <TaskCreateForm onSubmit={handleCreateTask} loading={submitLoading} />
+            <TaskCreateForm
+              onSubmit={handleCreateTask}
+              loading={createTask.isPending}
+            />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-visible">
           <CardHeader>
             <CardTitle>All Tasks</CardTitle>
             <CardDescription>Search, filter, and browse tasks across your team.</CardDescription>
-            {tasksLoading ? (
+            {tasksLoading || tasksFetching ? (
               <CardAction>
                 <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                   <Loader2 className="size-4 animate-spin" />
-                  Loading...
+                  {isSearchPending ? "Searching..." : "Loading..."}
                 </span>
               </CardAction>
             ) : null}
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 overflow-visible">
             <TaskFilters
               search={search}
               onSearchChange={(value) => {
@@ -243,7 +177,14 @@ export default function DashboardPage() {
                 setPage(1);
               }}
               disabled={tasksLoading}
+              isSearchPending={isSearchPending}
             />
+
+            {isError ? (
+              <p className="text-sm text-destructive">
+                {getApiMessage(error, "Failed to fetch tasks.")}
+              </p>
+            ) : null}
 
             {tasksLoading ? (
               <TableSkeleton rows={5} />
@@ -265,7 +206,7 @@ export default function DashboardPage() {
               <PaginationControls
                 pagination={pagination}
                 onPageChange={setPage}
-                disabled={tasksLoading}
+                disabled={tasksFetching}
               />
             ) : null}
           </CardContent>

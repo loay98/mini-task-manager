@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
-import { api } from "@/lib/api";
+import { getApiMessage } from "@/lib/api-error";
+import { useLoginMutation } from "@/lib/queries/auth";
 import { useAuthStore } from "@/store/auth-store";
-import type { ApiEnvelope, LoginResponse } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -20,10 +20,10 @@ const schema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { token, user, setAuth } = useAuthStore();
+  const login = useLoginMutation();
 
   const [email, setEmail] = useState("manager@test.com");
   const [password, setPassword] = useState("password");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -43,20 +43,17 @@ export default function LoginPage() {
     }
 
     try {
-      setLoading(true);
-      const response = await api.post<ApiEnvelope<LoginResponse>>("/auth/login", parsed.data);
+      const data = await login.mutateAsync(parsed.data);
 
-      if (response.data.data.user.role !== "manager") {
+      if (data.user.role !== "manager") {
         setError("Only manager accounts can access this portal.");
         return;
       }
 
-      setAuth(response.data.data.token, response.data.data.user);
+      setAuth(data.token, data.user);
       router.replace("/dashboard");
-    } catch {
-      setError("Unable to login. Please verify credentials.");
-    } finally {
-      setLoading(false);
+    } catch (err) {
+      setError(getApiMessage(err, "Unable to login. Please verify credentials."));
     }
   };
 
@@ -76,7 +73,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="manager@test.com"
-                disabled={loading}
+                disabled={login.isPending}
               />
             </div>
             <div className="space-y-2">
@@ -87,12 +84,12 @@ export default function LoginPage() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="password"
-                disabled={loading}
+                disabled={login.isPending}
               />
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
+            <Button type="submit" className="w-full" disabled={login.isPending}>
+              {login.isPending ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
                   Signing in...

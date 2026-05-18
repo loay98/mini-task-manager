@@ -1,7 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
 import {
   Select,
   SelectContent,
@@ -23,6 +22,7 @@ interface TaskFiltersProps {
   assignee: TaskAssigneeFilter;
   onAssigneeChange: (value: TaskAssigneeFilter) => void;
   disabled?: boolean;
+  isSearchPending?: boolean;
 }
 
 export function TaskFilters({
@@ -33,19 +33,17 @@ export function TaskFilters({
   assignee,
   onAssigneeChange,
   disabled,
+  isSearchPending = false,
 }: TaskFiltersProps) {
   return (
     <div className="grid gap-3 md:grid-cols-3">
-      <div className="relative md:col-span-1">
-        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search tasks or assignees..."
-          className="pl-8"
-          disabled={disabled}
-        />
-      </div>
+      <SearchInput
+        value={search}
+        onChange={onSearchChange}
+        placeholder="Search tasks or assignees..."
+        disabled={disabled}
+        isSearching={isSearchPending}
+      />
 
       <Select
         value={status}

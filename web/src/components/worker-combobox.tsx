@@ -1,14 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, Loader2, Search } from "lucide-react";
-import { api } from "@/lib/api";
-import { buildListParams } from "@/lib/api-params";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, Loader2 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useWorkersQuery } from "@/lib/queries/workers";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { SearchInput } from "@/components/search-input";
 import { cn } from "@/lib/utils";
-import type { ApiEnvelope, PaginatedResponse, User } from "@/types/api";
 
 const UNASSIGNED = "unassigned";
 const ALL_ASSIGNEES = "all";
@@ -21,7 +20,7 @@ interface WorkerComboboxProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   mode?: WorkerComboboxMode;
-  selectedLabel?: string;
+  defaultLabel?: string;
   placeholder?: string;
 }
 
@@ -30,45 +29,86 @@ export function WorkerCombobox({
   onChange,
   disabled = false,
   mode = "assign",
-  selectedLabel,
+  defaultLabel,
   placeholder,
 }: WorkerComboboxProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [workers, setWorkers] = useState<User[]>([]);
   const [page, setPage] = useState(1);
-  const [lastPage, setLastPage] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [resolvedLabel, setResolvedLabel] = useState<string | null>(null);
+  const [panelStyle, setPanelStyle] = useState({ top: 0, left: 0, width: 0 });
+  const [mounted, setMounted] = useState(false);
+  const [displayLabel, setDisplayLabel] = useState<string | null>(() => {
+    if (mode === "assign" && value) {
+      return defaultLabel ?? null;
+    }
+    if (mode === "filter" && value === UNASSIGNED) {
+      return "Unassigned";
+    }
+    return null;
+  });
 
-  const debouncedSearch = useDebouncedValue(search, 300);
+  const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 300);
 
   const normalizedValue =
     mode === "assign" ? value || UNASSIGNED : value === "all" || !value ? ALL_ASSIGNEES : value;
 
-  const fetchWorkers = useCallback(async (searchTerm: string, pageNumber: number) => {
-    setLoading(true);
-    try {
-      const response = await api.get<ApiEnvelope<PaginatedResponse<User>>>("/workers", {
-        params: buildListParams({
-          search: searchTerm || undefined,
-          page: pageNumber,
-          per_page: WORKERS_PER_PAGE,
-        }),
-      });
+  const { data, isFetching, isLoading } = useWorkersQuery(
+    {
+      search: debouncedSearch || undefined,
+      page,
+      per_page: WORKERS_PER_PAGE,
+    },
+    open
+  );
 
-      setWorkers(response.data.data.items);
-      setLastPage(response.data.data.pagination.last_page);
-    } finally {
-      setLoading(false);
-    }
+  const workers = data?.items ?? [];
+  const lastPage = data?.pagination.last_page ?? 1;
+  const isSearchPending = isDebouncing || (isFetching && !isLoading);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   useEffect(() => {
-    if (!open) return;
-    void fetchWorkers(debouncedSearch, page);
-  }, [open, debouncedSearch, page, fetchWorkers]);
+    if (!value || normalizedValue === UNASSIGNED || normalizedValue === ALL_ASSIGNEES) {
+      setDisplayLabel(null);
+      return;
+    }
+
+    const match = workers.find((worker) => String(worker.id) === normalizedValue);
+    if (match) {
+      setDisplayLabel(match.name);
+    }
+  }, [value, normalizedValue, workers]);
+
+  useEffect(() => {
+    if (!open) {
+      setSearch("");
+      setPage(1);
+      return;
+    }
+
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPanelStyle({
+        top: rect.bottom + window.scrollY + 4,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -76,34 +116,17 @@ export function WorkerCombobox({
   }, [debouncedSearch, open]);
 
   useEffect(() => {
-    if (!open) {
-      setSearch("");
-      setPage(1);
-    }
-  }, [open]);
-
-  useEffect(() => {
     const handlePointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (triggerRef.current?.contains(target) || panelRef.current?.contains(target)) {
+        return;
       }
+      setOpen(false);
     };
 
     document.addEventListener("mousedown", handlePointerDown);
     return () => document.removeEventListener("mousedown", handlePointerDown);
   }, []);
-
-  useEffect(() => {
-    if (normalizedValue === UNASSIGNED || normalizedValue === ALL_ASSIGNEES) {
-      setResolvedLabel(null);
-      return;
-    }
-
-    const match = workers.find((worker) => String(worker.id) === normalizedValue);
-    if (match) {
-      setResolvedLabel(match.name);
-    }
-  }, [normalizedValue, workers]);
 
   const displayValue = () => {
     if (mode === "filter") {
@@ -113,14 +136,23 @@ export function WorkerCombobox({
       return placeholder ?? "Unassigned";
     }
 
-    return selectedLabel ?? resolvedLabel ?? `Worker #${normalizedValue}`;
+    return displayLabel ?? `Worker #${normalizedValue}`;
   };
 
-  const selectValue = (next: string) => {
+  const selectValue = (next: string, workerName?: string) => {
     if (mode === "assign") {
-      onChange(next === UNASSIGNED ? "" : next);
+      const assigneeId = next === UNASSIGNED ? "" : next;
+      onChange(assigneeId);
+      setDisplayLabel(next === UNASSIGNED ? null : workerName ?? null);
     } else {
       onChange(next === ALL_ASSIGNEES ? "all" : next);
+      if (next === ALL_ASSIGNEES) {
+        setDisplayLabel(null);
+      } else if (next === UNASSIGNED) {
+        setDisplayLabel("Unassigned");
+      } else {
+        setDisplayLabel(workerName ?? null);
+      }
     }
     setOpen(false);
   };
@@ -133,9 +165,107 @@ export function WorkerCombobox({
         ]
       : [{ value: UNASSIGNED, label: "Unassigned" }];
 
+  const dropdown = open ? (
+    <div
+      ref={panelRef}
+      style={{
+        position: "absolute",
+        top: panelStyle.top,
+        left: panelStyle.left,
+        width: Math.max(panelStyle.width, 256),
+        zIndex: 9999,
+      }}
+      className="rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-md"
+    >
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search workers..."
+        isSearching={isSearchPending}
+        className="mb-2"
+      />
+
+      <div className="max-h-48 space-y-0.5 overflow-y-auto">
+        {filterOptions.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={cn(
+              "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted",
+              normalizedValue === option.value && "bg-muted"
+            )}
+            onClick={() => selectValue(option.value, option.label)}
+          >
+            {option.label}
+            {normalizedValue === option.value ? <Check className="size-4" /> : null}
+          </button>
+        ))}
+
+        {isLoading && workers.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading workers...
+          </div>
+        ) : null}
+
+        {!isLoading && workers.length === 0 ? (
+          <p className="px-2 py-4 text-center text-sm text-muted-foreground">No workers found.</p>
+        ) : null}
+
+        {workers.map((worker) => {
+          const workerValue = String(worker.id);
+          return (
+            <button
+              key={worker.id}
+              type="button"
+              className={cn(
+                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted",
+                normalizedValue === workerValue && "bg-muted"
+              )}
+              onClick={() => selectValue(workerValue, worker.name)}
+            >
+              <span className="truncate">
+                {worker.name}
+                {worker.email ? (
+                  <span className="block truncate text-xs text-muted-foreground">{worker.email}</span>
+                ) : null}
+              </span>
+              {normalizedValue === workerValue ? <Check className="size-4 shrink-0" /> : null}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isFetching || page <= 1}
+          onClick={() => setPage((current) => current - 1)}
+        >
+          Previous
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          Page {page} of {lastPage}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={isFetching || page >= lastPage}
+          onClick={() => setPage((current) => current + 1)}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
+  ) : null;
+
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div className="relative w-full">
       <Button
+        ref={triggerRef}
         type="button"
         variant="outline"
         disabled={disabled}
@@ -146,95 +276,7 @@ export function WorkerCombobox({
         <ChevronDown className={cn("size-4 shrink-0 opacity-50", open && "rotate-180")} />
       </Button>
 
-      {open ? (
-        <div className="absolute z-50 mt-1 w-full min-w-[16rem] rounded-lg border border-border bg-popover p-2 text-popover-foreground shadow-md">
-          <div className="relative mb-2">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search workers..."
-              className="pl-8"
-              autoFocus
-            />
-          </div>
-
-          <div className="max-h-48 space-y-0.5 overflow-y-auto">
-            {filterOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={cn(
-                  "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted",
-                  normalizedValue === option.value && "bg-muted"
-                )}
-                onClick={() => selectValue(option.value)}
-              >
-                {option.label}
-                {normalizedValue === option.value ? <Check className="size-4" /> : null}
-              </button>
-            ))}
-
-            {loading && workers.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-                <Loader2 className="size-4 animate-spin" />
-                Loading workers...
-              </div>
-            ) : null}
-
-            {!loading && workers.length === 0 ? (
-              <p className="px-2 py-4 text-center text-sm text-muted-foreground">No workers found.</p>
-            ) : null}
-
-            {workers.map((worker) => {
-              const workerValue = String(worker.id);
-              return (
-                <button
-                  key={worker.id}
-                  type="button"
-                  className={cn(
-                    "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted",
-                    normalizedValue === workerValue && "bg-muted"
-                  )}
-                  onClick={() => selectValue(workerValue)}
-                >
-                  <span className="truncate">
-                    {worker.name}
-                    {worker.email ? (
-                      <span className="block truncate text-xs text-muted-foreground">{worker.email}</span>
-                    ) : null}
-                  </span>
-                  {normalizedValue === workerValue ? <Check className="size-4 shrink-0" /> : null}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={loading || page <= 1}
-              onClick={() => setPage((current) => current - 1)}
-            >
-              Previous
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Page {page} of {lastPage}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={loading || page >= lastPage}
-              onClick={() => setPage((current) => current + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {mounted && dropdown ? createPortal(dropdown, document.body) : null}
     </div>
   );
 }
