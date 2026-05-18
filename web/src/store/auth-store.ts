@@ -8,7 +8,9 @@ import { clearAuthCookie, setAuthCookie } from "@/lib/cookies";
 interface AuthState {
   token: string | null;
   user: User | null;
+  hasHydrated: boolean;
   setAuth: (token: string, user: User) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
   logout: () => void;
 }
 
@@ -17,18 +19,25 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       token: null,
       user: null,
+      hasHydrated: false,
       setAuth: (token, user) => {
         setAuthCookie(token);
-        set({ token, user });
+        set({ token, user, hasHydrated: true });
+      },
+      setHasHydrated: (hasHydrated) => {
+        set({ hasHydrated });
       },
       logout: () => {
         clearAuthCookie();
-        set({ token: null, user: null });
+        set({ token: null, user: null, hasHydrated: true });
       },
     }),
     {
       name: "mini-task-manager-auth",
       storage: createJSONStorage(() => localStorage),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
     }
   )
 );

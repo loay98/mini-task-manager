@@ -1,23 +1,23 @@
 import { TasksPageClient } from "./tasks-page-client";
+import { AuthRouteGuard } from "@/components/auth-route-guard";
+import { TableSkeleton } from "@/components/skeletons";
 
 export const dynamic = "force-dynamic";
 
-type TasksPageProps = {
-  searchParams?: {
-    status?: string | string[];
-  };
-};
-
-function parseStatusFilter(value: string | string[] | undefined) {
-  const status = Array.isArray(value) ? value[0] : value;
-
-  if (status === "pending" || status === "completed") {
-    return status;
-  }
-
-  return "all";
-}
-
-export default function TasksPage({ searchParams }: TasksPageProps) {
-  return <TasksPageClient statusFilter={parseStatusFilter(searchParams?.status)} />;
+export default function TasksPage() {
+  return (
+    <AuthRouteGuard
+      mode="manager-only"
+      redirectTo="/login"
+      fallback={
+        <main className="app-gradient min-h-screen p-4 md:p-8">
+          <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
+            <TableSkeleton rows={5} />
+          </div>
+        </main>
+      }
+    >
+      <TasksPageClient statusFilter="all" />
+    </AuthRouteGuard>
+  );
 }

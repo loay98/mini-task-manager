@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getApiMessage } from "@/lib/api-error";
@@ -11,9 +10,8 @@ import {
   useTasksQuery,
   useUpdateTaskMutation,
 } from "@/lib/queries/tasks";
-import { useAuthStore } from "@/store/auth-store";
+import { useTaskNavigationStore } from "@/store/task-navigation-store";
 import type { CreateTaskPayload, UpdateTaskPayload } from "@/types/api";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -35,17 +33,16 @@ type TasksPageClientProps = {
 };
 
 export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
-  const router = useRouter();
-  const { token, user, logout } = useAuthStore();
+  const pendingStatus = useTaskNavigationStore((state) => state.pendingStatus);
+  const clearPendingStatus = useTaskNavigationStore((state) => state.clearPendingStatus);
 
   const [search, setSearch] = useState("");
+  const [taskStatusFilter, setTaskStatusFilter] = useState<TaskStatusFilter>(pendingStatus ?? statusFilter);
   const [assigneeFilter, setAssigneeFilter] = useState<TaskAssigneeFilter>("all");
   const [page, setPage] = useState(1);
   const [actingTaskId, setActingTaskId] = useState<number | null>(null);
 
   const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 800);
-
-  const isManager = Boolean(token && user?.role === "manager");
 
   const {
     data: tasksData,
@@ -58,7 +55,7 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
       page,
       per_page: TASKS_PER_PAGE,
       search: debouncedSearch || undefined,
-      status: statusFilter === "all" ? undefined : statusFilter,
+      status: taskStatusFilter === "all" ? undefined : taskStatusFilter,
       assignee_id:
         assigneeFilter === "all"
           ? undefined
@@ -66,7 +63,7 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
           ? null
           : Number(assigneeFilter),
     },
-    isManager
+    true
   );
 
   const createTask = useCreateTaskMutation();
@@ -82,14 +79,13 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
   };
 
   const isSearchPending = isDebouncing || (tasksFetching && !tasksLoading);
-  const hasActiveFilters = debouncedSearch.length > 0 || statusFilter !== "all" || assigneeFilter !== "all";
+  const hasActiveFilters = debouncedSearch.length > 0 || taskStatusFilter !== "all" || assigneeFilter !== "all";
 
   useEffect(() => {
-    if (!token) return;
-    if (user?.role !== "manager") {
-      router.replace("/login");
+    if (pendingStatus) {
+      clearPendingStatus();
     }
-  }, [token, user, router]);
+  }, [pendingStatus, clearPendingStatus]);
 
   const handleCreateTask = async (payload: CreateTaskPayload) => {
     await createTask.mutateAsync(payload);
@@ -97,7 +93,7 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
   };
 
   const handleStatusChange = (value: TaskStatusFilter) => {
-    router.replace(value === "all" ? "/tasks" : `/tasks?status=${value}`);
+    setTaskStatusFilter(value);
     setPage(1);
   };
 
@@ -123,8 +119,6 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
     }
   };
 
-  if (!isManager) return null;
-
   return (
     <main className="app-gradient min-h-screen p-4 md:p-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
@@ -132,11 +126,6 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
           <CardHeader>
             <CardTitle>Task Dashboard</CardTitle>
             <CardDescription>Manage team work items and assignments.</CardDescription>
-            <CardAction>
-              <Button variant="outline" onClick={() => logout()}>
-                Logout
-              </Button>
-            </CardAction>
           </CardHeader>
           <CardContent>
             <TaskCreateForm onSubmit={handleCreateTask} loading={createTask.isPending} />
@@ -163,7 +152,7 @@ export function TasksPageClient({ statusFilter }: TasksPageClientProps) {
                 setSearch(value);
                 setPage(1);
               }}
-              status={statusFilter}
+              status={taskStatusFilter}
               onStatusChange={handleStatusChange}
               assignee={assigneeFilter}
               onAssigneeChange={(value) => {

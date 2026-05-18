@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { AUTH_COOKIE_KEY } from "@/lib/cookies";
 
-const protectedPaths = ["/dashboard"];
+const protectedPaths = ["/dashboard", "/tasks"];
 
 export function proxy(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_KEY)?.value;
@@ -22,5 +22,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/dashboard/:path*"],
+  matcher: ["/login", "/dashboard/:path*", "/tasks/:path*"],
 };

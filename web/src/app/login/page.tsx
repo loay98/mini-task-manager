@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { getApiMessage } from "@/lib/api-error";
 import { useLoginMutation } from "@/lib/queries/auth";
 import { useAuthStore } from "@/store/auth-store";
+import { AuthRouteGuard } from "@/components/auth-route-guard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,20 +18,14 @@ const schema = z.object({
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const { token, user, setAuth } = useAuthStore();
+  const { setAuth } = useAuthStore();
   const login = useLoginMutation();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (token && user?.role === "manager") {
-      router.replace("/dashboard");
-    }
-  }, [token, user, router]);
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -109,5 +104,28 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <AuthRouteGuard
+      mode="guest-only"
+      redirectTo="/dashboard"
+      fallback={
+        <main className="app-gradient flex min-h-screen items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardContent className="flex items-center justify-center py-10">
+              <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading...
+              </span>
+            </CardContent>
+          </Card>
+        </main>
+      }
+    >
+      <LoginForm />
+    </AuthRouteGuard>
   );
 }

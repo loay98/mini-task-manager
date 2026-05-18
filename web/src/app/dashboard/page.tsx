@@ -1,33 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useTaskNavigationStore } from "@/store/task-navigation-store";
 import { useDashboardQuery } from "@/lib/queries/dashboard";
-import { useAuthStore } from "@/store/auth-store";
+import { useAuthSession } from "@/hooks/use-auth-session";
+import { AuthRouteGuard } from "@/components/auth-route-guard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardSummarySkeleton } from "@/components/skeletons";
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const { token, user } = useAuthStore();
-
-  const isManager = Boolean(token && user?.role === "manager");
+function DashboardContent() {
+  const { isManager } = useAuthSession();
+  const setPendingStatus = useTaskNavigationStore((state) => state.setPendingStatus);
 
   const dashboardQuery = useDashboardQuery(isManager);
   const isSummaryLoading = dashboardQuery.isPending || dashboardQuery.isLoading;
-
-  useEffect(() => {
-    if (!token) return;
-    if (user?.role !== "manager") {
-      router.replace("/login");
-    }
-  }, [token, user, router]);
-
-
-  if (!isManager) {
-    return null;
-  }
 
   if (isSummaryLoading) {
     return (
@@ -75,7 +61,13 @@ export default function DashboardPage() {
                 <div className="text-sm text-muted-foreground">Pending</div>
                 <div className="mt-2 text-2xl font-semibold">{pendingTasks}</div>
                 <div className="mt-3">
-                  <Link href="/tasks?status=pending" className="text-sm text-primary">View pending →</Link>
+                  <Link
+                    href="/tasks"
+                    className="text-sm text-primary"
+                    onClick={() => setPendingStatus("pending")}
+                  >
+                    View pending →
+                  </Link>
                 </div>
               </div>
 
@@ -83,7 +75,13 @@ export default function DashboardPage() {
                 <div className="text-sm text-muted-foreground">Completed</div>
                 <div className="mt-2 text-2xl font-semibold">{completedTasks}</div>
                 <div className="mt-3">
-                  <Link href="/tasks?status=completed" className="text-sm text-primary">View completed →</Link>
+                  <Link
+                    href="/tasks"
+                    className="text-sm text-primary"
+                    onClick={() => setPendingStatus("completed")}
+                  >
+                    View completed →
+                  </Link>
                 </div>
               </div>
 
@@ -99,5 +97,31 @@ export default function DashboardPage() {
         </Card>
       </div>
     </main>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <AuthRouteGuard
+      mode="manager-only"
+      redirectTo="/login"
+      fallback={
+        <main className="app-gradient min-h-screen p-4 md:p-8">
+          <div className="mx-auto w-full max-w-5xl">
+            <Card>
+              <CardHeader>
+                <CardTitle>Overview</CardTitle>
+                <CardDescription>High level metrics for your team.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DashboardSummarySkeleton />
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      }
+    >
+      <DashboardContent />
+    </AuthRouteGuard>
   );
 }
