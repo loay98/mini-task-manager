@@ -72,7 +72,7 @@ function LoginForm() {
                 autoComplete="new-password"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="manager@test.com"
+                placeholder="email"
                 disabled={login.isPending}
               />
             </div>
