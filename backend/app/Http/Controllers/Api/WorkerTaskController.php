@@ -11,11 +11,17 @@ class WorkerTaskController extends BaseApiController
 {
     public function index(Request $request)
     {
-        $tasks = Task::query()
+        $query = Task::query()
             ->with('assignee:id,name,email,role')
-            ->where('assignee_id', $request->user()->id)
-            ->latest()
-            ->paginate((int) $request->integer('per_page', 10));
+            ->where('assignee_id', $request->user()->id);
+
+        // Filter by status if provided
+        $status = $request->string('status')->toString();
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $tasks = $query->latest()->paginate((int) $request->integer('per_page', 10));
 
         return $this->success([
             'items' => TaskResource::collection($tasks->items()),
