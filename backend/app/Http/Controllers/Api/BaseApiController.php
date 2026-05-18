@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\JsonResource;
 
 class BaseApiController extends Controller
 {
@@ -23,5 +25,24 @@ class BaseApiController extends Controller
             'message' => $message,
             'errors' => $errors,
         ], $status);
+    }
+
+    /**
+     * @param  class-string<JsonResource>  $resourceClass
+     */
+    protected function paginatedResponse(
+        LengthAwarePaginator $paginator,
+        string $resourceClass,
+        string $message
+    ): JsonResponse {
+        return $this->success([
+            'items' => $resourceClass::collection($paginator->items()),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+            ],
+        ], $message);
     }
 }
