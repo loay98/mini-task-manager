@@ -9,7 +9,7 @@ import { fetchMyTasksPage, fetchTaskCounts, markTaskCompleted } from "../../api/
 import type { PaginatedResponse } from "../../types/api";
 import type { Task } from "../../types/task";
 
-export const tasksQueryKey = (status?: string, search?: string) => ["my-tasks", { status, search }] as const;
+export const tasksQueryKey = (status?: string, search?: string) => ["my-tasks", status ?? "all", search ?? ""] as const;
 export const tasksCountsQueryKey = ["my-tasks-counts"] as const;
 
 export function useTasksQuery(status?: string, search?: string) {
@@ -43,41 +43,41 @@ export function useCompleteTaskMutation() {
       await queryClient.cancelQueries({ queryKey: ["my-tasks"] });
 
       // Store previous data for all status variants
-      const previousTasks = queryClient.getQueryData<
+      const previousTasks = queryClient.getQueriesData<
         InfiniteData<PaginatedResponse<Task>, number>
-      >(["my-tasks"]);
+      >({ queryKey: ["my-tasks"] });
 
       // Optimistically update all tasks queries
-      queryClient.setQueryData<InfiniteData<PaginatedResponse<Task>, number>>(
-        ["my-tasks"],
-        (current) => {
-          if (!current) {
-            return current;
-          }
-
-          return {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              items: page.items.map((task) =>
-                task.id === taskId
-                  ? {
-                      ...task,
-                      status: "completed",
-                    }
-                  : task
-              ),
-            })),
-          };
+      previousTasks.forEach(([key, data]) => {
+        if (data) {
+          queryClient.setQueryData<InfiniteData<PaginatedResponse<Task>, number>>(
+            key,
+            {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                items: page.items.map((task) =>
+                  task.id === taskId
+                    ? {
+                        ...task,
+                        status: "completed",
+                      }
+                    : task
+                ),
+              })),
+            }
+          );
         }
-      );
+      });
 
       return { previousTasks };
     },
 
     onError: (_error, _taskId, context) => {
       if (context?.previousTasks) {
-        queryClient.setQueryData(["my-tasks"], context.previousTasks);
+        context.previousTasks.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
 

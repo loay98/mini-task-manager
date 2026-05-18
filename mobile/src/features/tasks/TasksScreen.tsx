@@ -40,7 +40,18 @@ export function TasksScreen() {
   const completeTaskMutation = useCompleteTaskMutation();
 
   const tasks = useMemo(
-    () => tasksQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    () => {
+      const allTasks = tasksQuery.data?.pages.flatMap((page) => page.items) ?? [];
+      // Deduplicate by id to prevent duplicate keys
+      const seen = new Set<number>();
+      return allTasks.filter((task) => {
+        if (seen.has(task.id)) {
+          return false;
+        }
+        seen.add(task.id);
+        return true;
+      });
+    },
     [tasksQuery.data]
   );
 
@@ -129,14 +140,6 @@ export function TasksScreen() {
       ? getErrorMessage(completeTaskMutation.error, "Unable to update task.")
       : "";
 
-  if (tasksQuery.isPending) {
-    return (
-      <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
-        <CenteredMessage title="Loading tasks" subtitle="Please wait a moment." loading />
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
@@ -181,63 +184,71 @@ export function TasksScreen() {
         </View>
       </View>
 
-      {(tasksQuery.isRefetching || completeTaskMutation.isPending) ? (
-        <View style={styles.topLoaderRow}>
-          <ActivityIndicator size="small" color="#1f6feb" />
-          <Text style={styles.topLoaderText}>Syncing tasks...</Text>
-        </View>
-      ) : null}
+      {tasksQuery.isPending ? (
+        <CenteredMessage title="Loading tasks" subtitle="Please wait a moment." loading />
+      ) : (
+        <>
+          {(tasksQuery.isRefetching || completeTaskMutation.isPending) ? (
+            <View style={styles.topLoaderRow}>
+              <ActivityIndicator size="small" color="#1f6feb" />
+              <Text style={styles.topLoaderText}>Syncing tasks...</Text>
+            </View>
+          ) : null}
 
-      {topError ? <Text style={styles.error}>{topError}</Text> : null}
+          {topError ? <Text style={styles.error}>{topError}</Text> : null}
 
-      <FlatList<Task>
-        data={tasks}
-        keyExtractor={(item) => `task-${item.id}`}
-        contentContainerStyle={[
-          styles.listContent,
-          tasks.length === 0 && styles.emptyListContent,
-        ]}
-        renderItem={({ item }) => (
-          <TaskCard
-            task={item}
-            disabled={completeTaskMutation.isPending}
-            isCompleting={completingTaskId === item.id}
-            onComplete={onComplete}
-          />
-        )}
-        refreshControl={
-          <RefreshControl
-            refreshing={tasksQuery.isRefetching}
-            onRefresh={() => {
-              void tasksQuery.refetch();
+          <FlatList<Task>
+            key={`tasks-${statusFilter}`}
+            data={tasks}
+            extraData={statusFilter}
+            keyExtractor={(item) => `task-${item.id}-${statusFilter}`}
+            contentContainerStyle={[
+              styles.listContent,
+              tasks.length === 0 && styles.emptyListContent,
+            ]}
+            renderItem={({ item }) => (
+              <TaskCard
+                task={item}
+                disabled={completeTaskMutation.isPending}
+                isCompleting={completingTaskId === item.id}
+                onComplete={onComplete}
+              />
+            )}
+            refreshControl={
+              <RefreshControl
+                refreshing={tasksQuery.isRefetching}
+                onRefresh={() => {
+                  void tasksQuery.refetch();
+                }}
+              />
+            }
+            onEndReachedThreshold={0.2}
+            onEndReached={() => {
+              if (tasksQuery.hasNextPage && !tasksQuery.isFetchingNextPage) {
+                void tasksQuery.fetchNextPage();
+              }
             }}
-          />
-        }
-        onEndReachedThreshold={0.2}
-        onEndReached={() => {
-          if (tasksQuery.hasNextPage && !tasksQuery.isFetchingNextPage) {
-            void tasksQuery.fetchNextPage();
-          }
-        }}
-        ListEmptyComponent={
-          <CenteredMessage
-            title={tasks.length === 0 ? "No assigned tasks" : "No matching tasks"}
-            subtitle={
-              tasks.length === 0
-                ? "You are all caught up. Pull down to refresh."
-                : "Try a different search term."
+            ListEmptyComponent={
+              <CenteredMessage
+                title={tasks.length === 0 ? "No assigned tasks" : "No matching tasks"}
+                subtitle={
+                  tasks.length === 0
+                    ? "You are all caught up. Pull down to refresh."
+                    : "Try a different search term."
+                }
+              />
+            }
+            ListFooterComponent={
+              tasksQuery.isFetchingNextPage ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator color="#1f6feb" />
+                  <Text style={styles.footerText}>Loading more tasks...</Text>
+                </View>
+              ) : null
             }
           />
-        }
-        ListFooterComponent={
-          tasksQuery.isFetchingNextPage ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator color="#1f6feb" />
-              <Text style={styles.footerText}>Loading more tasks...</Text>
-            </View>
-          ) : null
-        }
-      />
+        </>
+      )}
 
       <View style={[styles.toastContainer, { top: insets.top + 20, left: 0, right: 0 }]}>
         <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
