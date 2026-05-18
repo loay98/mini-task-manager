@@ -8,15 +8,16 @@ import {
 import { fetchMyTasksPage, fetchTaskCounts, markTaskCompleted } from "../../api/tasks";
 import type { PaginatedResponse } from "../../types/api";
 import type { Task } from "../../types/task";
+import type { SortBy, SortOrder } from "../../api/tasks";
 
-export const tasksQueryKey = (status?: string, search?: string) => ["my-tasks", status ?? "all", search ?? ""] as const;
+export const tasksQueryKey = (status?: string, search?: string, sortBy?: SortBy, sortOrder?: SortOrder) => ["my-tasks", status ?? "all", search ?? "", sortBy ?? "id", sortOrder ?? "asc"] as const;
 export const tasksCountsQueryKey = ["my-tasks-counts"] as const;
 
-export function useTasksQuery(status?: string, search?: string) {
+export function useTasksQuery(status?: string, search?: string, sortBy?: SortBy, sortOrder?: SortOrder) {
   return useInfiniteQuery({
-    queryKey: tasksQueryKey(status, search),
+    queryKey: tasksQueryKey(status, search, sortBy, sortOrder),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => fetchMyTasksPage(pageParam, status, search),
+    queryFn: ({ pageParam }) => fetchMyTasksPage(pageParam, status, search, sortBy, sortOrder),
     getNextPageParam: (lastPage) => {
       const { current_page, last_page } = lastPage.pagination;
       return current_page < last_page ? current_page + 1 : undefined;

@@ -8,13 +8,24 @@ export interface TaskCounts {
   completed: number;
 }
 
-export async function fetchMyTasksPage(pageParam = 1, status?: string, search?: string): Promise<PaginatedResponse<Task>> {
+export type SortBy = 'id' | 'title' | 'created_at' | 'updated_at' | 'due_date';
+export type SortOrder = 'asc' | 'desc';
+
+export async function fetchMyTasksPage(
+  pageParam = 1,
+  status?: string,
+  search?: string,
+  sortBy?: SortBy,
+  sortOrder?: SortOrder
+): Promise<PaginatedResponse<Task>> {
   const response = await api.get<ApiEnvelope<PaginatedResponse<Task>>>("/my-tasks", {
     params: {
       page: pageParam,
       per_page: 10,
       ...(status && status !== "all" ? { status } : {}),
       ...(search ? { search } : {}),
+      ...(sortBy ? { sort_by: sortBy } : {}),
+      ...(sortOrder ? { sort_order: sortOrder } : {}),
     },
   });
   return response.data.data;

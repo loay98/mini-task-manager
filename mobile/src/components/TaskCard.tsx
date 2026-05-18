@@ -32,6 +32,7 @@ export const TaskCard = memo(function TaskCard({
   const isCompleted = normalizedStatus === "completed";
   const dueDateLabel = formatDateTime(task.due_date);
   const assignedDateLabel = formatDateTime(task.created_at);
+  const updatedDateLabel = formatDateTime(task.updated_at);
   const assignedByLabel = task.assigned_by?.name ?? "N/A";
 
   return (
@@ -44,8 +45,9 @@ export const TaskCard = memo(function TaskCard({
       </View>
 
       {task.description ? <Text style={styles.description}>{task.description}</Text> : null}
-      {dueDateLabel ? <Text style={styles.meta}>Due: {dueDateLabel}</Text> : null}
+      <Text style={styles.meta}>Due: {dueDateLabel ?? "N/A"}</Text>
       {assignedDateLabel ? <Text style={styles.meta}>Assigned date: {assignedDateLabel}</Text> : null}
+      {updatedDateLabel ? <Text style={styles.meta}>Updated: {updatedDateLabel}</Text> : null}
       <Text style={styles.meta}>Assigned by: {assignedByLabel}</Text>
 
       <Pressable
