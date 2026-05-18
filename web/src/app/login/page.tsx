@@ -55,7 +55,7 @@ function LoginForm() {
   };
 
   return (
-    <main className="app-gradient flex min-h-screen items-center justify-center p-4">
+    <main className="app-gradient flex flex-1 items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Manager Login</CardTitle>
@@ -113,7 +113,7 @@ export default function LoginPage() {
       mode="guest-only"
       redirectTo="/dashboard"
       fallback={
-        <main className="app-gradient flex min-h-screen items-center justify-center p-4">
+        <main className="app-gradient flex flex-1 items-center justify-center p-4">
           <Card className="w-full max-w-md">
             <CardContent className="flex items-center justify-center py-10">
               <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">

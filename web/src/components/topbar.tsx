@@ -30,7 +30,7 @@ export function Topbar() {
   return (
     <>
       <header className="w-full border-b bg-background/70 backdrop-blur-md">
-        <div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:min-h-20 sm:py-4">
+        <div className="mx-auto flex min-h-14 max-w-6xl items-center justify-between gap-4 px-4 py-2.5 sm:min-h-16 sm:py-3">
           <div className="flex min-w-0 items-center gap-4">
             <Link href="/dashboard" className="inline-flex min-w-0 items-center gap-3">
               <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
@@ -62,13 +62,23 @@ export function Topbar() {
             ) : null}
           </div>
 
-          {user ? (
-            <div className="md:hidden">
-              <Button variant="outline" size="icon-sm" onClick={() => setIsMenuOpen(true)} aria-label="Open menu">
-                <Menu className="size-4" />
-              </Button>
-            </div>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {user ? (
+              <div className="hidden md:block">
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  Logout
+                </Button>
+              </div>
+            ) : null}
+
+            {user ? (
+              <div className="md:hidden">
+                <Button variant="outline" size="icon-sm" onClick={() => setIsMenuOpen(true)} aria-label="Open menu">
+                  <Menu className="size-4" />
+                </Button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 

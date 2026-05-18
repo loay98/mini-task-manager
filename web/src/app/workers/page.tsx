@@ -10,14 +10,14 @@ export default function WorkersPage() {
       mode="manager-only"
       redirectTo="/login"
       fallback={
-        <main className="app-gradient min-h-screen p-4 md:p-8">
+        <main className="app-gradient flex-1 p-4 md:p-8">
           <div className="mx-auto w-full max-w-5xl">
             <TableSkeleton rows={4} />
           </div>
         </main>
       }
     >
-      <main className="app-gradient min-h-screen p-4 md:p-8">
+      <main className="app-gradient flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-5xl">
           <WorkersManagement />
         </div>

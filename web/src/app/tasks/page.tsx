@@ -10,7 +10,7 @@ export default function TasksPage() {
       mode="manager-only"
       redirectTo="/login"
       fallback={
-        <main className="app-gradient min-h-screen p-4 md:p-8">
+        <main className="app-gradient flex-1 p-4 md:p-8">
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
             <TableSkeleton rows={5} />
           </div>

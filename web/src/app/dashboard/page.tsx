@@ -17,7 +17,7 @@ function DashboardContent() {
 
   if (isSummaryLoading) {
     return (
-      <main className="app-gradient min-h-screen p-4 md:p-8">
+      <main className="app-gradient flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-5xl">
           <Card>
             <CardHeader>
@@ -40,7 +40,7 @@ function DashboardContent() {
   const totalWorkers = summary?.workers.total ?? 0;
 
   return (
-    <main className="app-gradient min-h-screen p-4 md:p-8">
+    <main className="app-gradient flex-1 p-4 md:p-8">
       <div className="mx-auto w-full max-w-5xl">
         <Card>
           <CardHeader>
@@ -106,7 +106,7 @@ export default function DashboardPage() {
       mode="manager-only"
       redirectTo="/login"
       fallback={
-        <main className="app-gradient min-h-screen p-4 md:p-8">
+        <main className="app-gradient flex-1 p-4 md:p-8">
           <div className="mx-auto w-full max-w-5xl">
             <Card>
               <CardHeader>
