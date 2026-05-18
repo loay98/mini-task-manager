@@ -35,7 +35,7 @@ export function TasksScreen() {
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
   const [lastErrorSeen, setLastErrorSeen] = useState<string | null>(null);
 
-  const tasksQuery = useTasksQuery(statusFilter);
+  const tasksQuery = useTasksQuery(statusFilter, searchText.trim());
   const tasksCountQuery = useTasksCountQuery();
   const completeTaskMutation = useCompleteTaskMutation();
 
@@ -44,43 +44,7 @@ export function TasksScreen() {
     [tasksQuery.data]
   );
 
-  const filteredTasks = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    const seenIds = new Set<number>();
-
-    return tasks.filter((task) => {
-      // Prevent duplicates in the filtered array
-      if (seenIds.has(task.id)) {
-        return false;
-      }
-
-      // Keep showing the task being completed even if its status changed
-      if (completingTaskId === task.id) {
-        seenIds.add(task.id);
-        return true;
-      }
-
-      // Status filtering is now handled by the API, but we still need to check
-      // if the task matches the current status filter (in case of stale data)
-      if (statusFilter !== "all" && task.status.toLowerCase() !== statusFilter) {
-        return false;
-      }
-
-      if (!query) {
-        seenIds.add(task.id);
-        return true;
-      }
-
-      const inTitle = task.title.toLowerCase().includes(query);
-      const inDescription = task.description?.toLowerCase().includes(query) ?? false;
-      const inStatus = task.status.toLowerCase().includes(query);
-      const matches = inTitle || inDescription || inStatus;
-      if (matches) {
-        seenIds.add(task.id);
-      }
-      return matches;
-    });
-  }, [searchText, statusFilter, tasks, completingTaskId]);
+  // No client-side filtering - all filtering is done by the API
 
   const taskCounts = useMemo(() => {
     return tasksCountQuery.data ?? { all: 0, pending: 0, completed: 0 };
@@ -120,7 +84,7 @@ export function TasksScreen() {
 
   const onLogout = async () => {
     await logout();
-    queryClient.removeQueries({ queryKey: tasksQueryKey(statusFilter) });
+    queryClient.removeQueries({ queryKey: tasksQueryKey(statusFilter, searchText.trim()) });
     queryClient.removeQueries({ queryKey: tasksCountsQueryKey });
   };
 
@@ -190,7 +154,7 @@ export function TasksScreen() {
         <TextInput
           value={searchText}
           onChangeText={setSearchText}
-          placeholder="Search tasks by title, description, or status"
+          placeholder="Search by task title or task ID"
           placeholderTextColor="#9ca3af"
           style={styles.searchInput}
         />
@@ -227,11 +191,11 @@ export function TasksScreen() {
       {topError ? <Text style={styles.error}>{topError}</Text> : null}
 
       <FlatList<Task>
-        data={filteredTasks}
+        data={tasks}
         keyExtractor={(item) => `task-${item.id}`}
         contentContainerStyle={[
           styles.listContent,
-          filteredTasks.length === 0 && styles.emptyListContent,
+          tasks.length === 0 && styles.emptyListContent,
         ]}
         renderItem={({ item }) => (
           <TaskCard
