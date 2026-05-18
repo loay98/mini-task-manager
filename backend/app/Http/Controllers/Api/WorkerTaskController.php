@@ -46,4 +46,21 @@ class WorkerTaskController extends BaseApiController
 
         return $this->success(new TaskResource($task), 'Task marked as completed.');
     }
-}
+
+    public function counts(Request $request)
+    {
+        $userId = $request->user()->id;
+        $allCount = Task::where('assignee_id', $userId)->count();
+        $pendingCount = Task::where('assignee_id', $userId)
+            ->where('status', TaskStatus::PENDING->value)
+            ->count();
+        $completedCount = Task::where('assignee_id', $userId)
+            ->where('status', TaskStatus::COMPLETED->value)
+            ->count();
+
+        return $this->success([
+            'all' => $allCount,
+            'pending' => $pendingCount,
+            'completed' => $completedCount,
+        ], 'Task counts fetched successfully.');
+    }
