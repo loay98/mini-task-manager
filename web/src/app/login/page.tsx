@@ -22,8 +22,8 @@ export default function LoginPage() {
   const { token, user, setAuth } = useAuthStore();
   const login = useLoginMutation();
 
-  const [email, setEmail] = useState("manager@test.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -65,11 +65,13 @@ export default function LoginPage() {
           <CardDescription>Sign in to create and assign tasks.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="space-y-4" onSubmit={onSubmit}>
+          <form className="space-y-4" onSubmit={onSubmit} autoComplete="off">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
+                type="email"
+                autoComplete="off"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="manager@test.com"
@@ -81,6 +83,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
+                autoComplete="off"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 placeholder="password"

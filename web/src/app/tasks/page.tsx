@@ -1,5 +1,7 @@
 import { TasksPageClient } from "./tasks-page-client";
 
+export const dynamic = "force-dynamic";
+
 type TasksPageProps = {
   searchParams?: {
     status?: string | string[];

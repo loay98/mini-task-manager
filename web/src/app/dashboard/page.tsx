@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useDashboardQuery } from "@/lib/queries/dashboard";
 import { useAuthStore } from "@/store/auth-store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DashboardSummarySkeleton } from "@/components/skeletons";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -14,6 +15,7 @@ export default function DashboardPage() {
   const isManager = Boolean(token && user?.role === "manager");
 
   const dashboardQuery = useDashboardQuery(isManager);
+  const isSummaryLoading = dashboardQuery.isPending || dashboardQuery.isLoading;
 
   useEffect(() => {
     if (!token) return;
@@ -25,6 +27,24 @@ export default function DashboardPage() {
 
   if (!isManager) {
     return null;
+  }
+
+  if (isSummaryLoading) {
+    return (
+      <main className="app-gradient min-h-screen p-4 md:p-8">
+        <div className="mx-auto w-full max-w-5xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Overview</CardTitle>
+              <CardDescription>High level metrics for your team.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DashboardSummarySkeleton />
+            </CardContent>
+          </Card>
+        </div>
+      </main>
+    );
   }
 
   const summary = dashboardQuery.data;
