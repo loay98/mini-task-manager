@@ -25,4 +25,11 @@ class AuthController extends BaseApiController
             'user' => new UserResource($user),
         ], 'Login successful.');
     }
+
+    public function logout()
+    {
+        Auth::guard('api')->logout();
+
+        return $this->success(null, 'Logged out successfully.');
+    }
 }
