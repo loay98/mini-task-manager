@@ -22,6 +22,12 @@ class WorkersController extends BaseApiController
             ->select('id', 'name', 'email', 'role', 'created_at', 'updated_at')
             ->when(filled($validated['search'] ?? null), function ($query) use ($validated): void {
                 $search = $validated['search'];
+                // If search is numeric, match by ID
+                if (ctype_digit((string) $search)) {
+                    $query->where('id', (int) $search);
+                    return;
+                }
+
                 $query->where(function ($builder) use ($search): void {
                     $builder->where('name', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%");

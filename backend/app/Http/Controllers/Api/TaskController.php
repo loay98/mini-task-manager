@@ -44,6 +44,12 @@ class TaskController extends BaseApiController
             ->with('assignee:id,name,email,role')
             ->when(filled($validated['search'] ?? null), function ($query) use ($validated): void {
                 $search = $validated['search'];
+                // If search is purely numeric, search by ID
+                if (ctype_digit((string) $search)) {
+                    $query->where('id', (int) $search);
+                    return;
+                }
+
                 $query->where(function ($builder) use ($search): void {
                     $builder->where('title', 'like', "%{$search}%")
                         ->orWhereHas('assignee', function ($assigneeQuery) use ($search): void {
