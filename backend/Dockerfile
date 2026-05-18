@@ -6,9 +6,10 @@ RUN apt-get update \
         git \
         unzip \
         libzip-dev \
-        default-mysql-client \
+        libpq-dev \
+        postgresql-client \
         curl \
-    && docker-php-ext-install pdo_mysql zip \
+    && docker-php-ext-install pdo_pgsql zip \
     && rm -rf /var/lib/apt/lists/*
 
 # Composer

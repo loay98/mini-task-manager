@@ -7,16 +7,16 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
     environment:
       APP_ENV: local
       APP_DEBUG: true
       APP_URL: http://localhost:8000
 
-      DB_CONNECTION: mysql
-      DB_HOST: mysql
-      DB_PORT: 3306
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_DATABASE: mini_task_manager
       DB_USERNAME: mini_user
       DB_PASSWORD: mini_password
@@ -25,22 +25,20 @@ services:
     volumes:
       - ./backend:/var/www
 
-  mysql:
-    image: mysql:8.0
-    command: --skip-ssl
-    container_name: mtm_mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: mtm_postgres
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "5432:5432"
     environment:
-      MYSQL_DATABASE: mini_task_manager
-      MYSQL_USER: mini_user
-      MYSQL_PASSWORD: mini_password
-      MYSQL_ROOT_PASSWORD: root_password
+      POSTGRES_DB: mini_task_manager
+      POSTGRES_USER: mini_user
+      POSTGRES_PASSWORD: mini_password
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "pg_isready -U mini_user -d mini_task_manager"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -61,4 +59,4 @@ services:
       - /app/node_modules
 
 volumes:
-  mysql_data:
+  postgres_data:

@@ -7,14 +7,14 @@ Production-structured full-stack monorepo with Laravel API, Next.js manager port
 - Backend: Laravel 11 REST API with JWT auth and role middleware
 - Web: Next.js 15+ App Router (generated on latest Next.js), TypeScript, TailwindCSS, Zustand, Axios
 - Mobile: Expo + React Native + Expo Router, TypeScript, React Native Paper, Zustand, Axios
-- Database: MySQL only
+- Database: PostgreSQL
 - Auth: JWT via tymon/jwt-auth
-- Local Dev: Docker Compose for MySQL + API + Web
+- Local Dev: Docker Compose for PostgreSQL + API + Web
 - Deploy Targets:
   - Backend: Render
   - Web: Vercel
   - Mobile: Expo EAS Build
-  - Database: Railway MySQL
+  - Database: Railway PostgreSQL (or any managed Postgres)
 
 ## Monorepo Structure
 
@@ -152,9 +152,9 @@ Copy from backend/.env.example and ensure:
 - APP_KEY=
 - APP_DEBUG=true
 - APP_URL=http://localhost:8000
-- DB_CONNECTION=mysql
-- DB_HOST=mysql (docker) or your DB host
-- DB_PORT=3306
+- DB_CONNECTION=pgsql
+- DB_HOST=postgres (docker) or your DB host
+- DB_PORT=5432
 - DB_DATABASE=mini_task_manager
 - DB_USERNAME=mini_user
 - DB_PASSWORD=mini_password
@@ -188,7 +188,7 @@ From repository root:
    - http://localhost:3000
 
 Notes:
-- Docker starts MySQL, backend, and web.
+- Docker starts PostgreSQL, backend, and web.
 - Backend container runs composer install, generates keys, migrates, and seeds.
 - Mobile runs outside Docker via Expo.
 
@@ -217,11 +217,13 @@ Mobile:
 
 ## Deployment (Free Platforms)
 
-## Database: Railway MySQL
+## Database: Railway PostgreSQL
 
-1. Create a Railway MySQL service.
-2. Copy host, port, database, username, password.
-3. Use these values in Render backend environment variables.
+1. Create a Railway PostgreSQL service.
+2. Copy host, port, database, username, and password.
+3. Set Render backend environment variables:
+   - DB_CONNECTION=pgsql
+   - DB_HOST, DB_PORT (5432), DB_DATABASE, DB_USERNAME, DB_PASSWORD
 
 ## Backend: Render
 
