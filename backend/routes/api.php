@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\TaskController;
 use App\Http\Controllers\Api\WorkersController;
 use App\Http\Controllers\Api\WorkerTaskController;
@@ -12,6 +13,7 @@ Route::prefix('auth')->group(function (): void {
 
 Route::middleware('auth:api')->group(function (): void {
     Route::middleware('role:manager')->group(function (): void {
+        Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/tasks', [TaskController::class, 'index']);
         Route::get('/workers', [WorkersController::class, 'index']);
         Route::post('/workers', [WorkersController::class, 'store']);
