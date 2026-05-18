@@ -9,6 +9,11 @@ import {
 } from "@/components/ui/select";
 import type { TaskStatus } from "@/types/api";
 
+const statusLabels: Record<TaskStatus, string> = {
+  pending: "Pending",
+  completed: "Completed",
+};
+
 interface StatusSelectProps {
   value: TaskStatus;
   onChange: (value: TaskStatus) => void;
@@ -25,11 +30,11 @@ export function StatusSelect({ value, onChange, disabled }: StatusSelectProps) {
       disabled={disabled}
     >
       <SelectTrigger className="w-full">
-        <SelectValue />
+        <SelectValue placeholder="Select status" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="pending">pending</SelectItem>
-        <SelectItem value="completed">completed</SelectItem>
+        <SelectItem value="pending">{statusLabels.pending}</SelectItem>
+        <SelectItem value="completed">{statusLabels.completed}</SelectItem>
       </SelectContent>
     </Select>
   );

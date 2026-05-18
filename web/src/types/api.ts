@@ -6,6 +6,8 @@ export interface User {
   name: string;
   email?: string;
   role: UserRole;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Task {
@@ -70,4 +72,16 @@ export interface UpdateTaskPayload {
   title?: string;
   status?: TaskStatus;
   assignee_id?: number | null;
+}
+
+export interface CreateWorkerPayload {
+  name: string;
+  email: string;
+  password: string;
+}
+
+export interface UpdateWorkerPayload {
+  name?: string;
+  email?: string;
+  password?: string;
 }

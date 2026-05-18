@@ -26,6 +26,7 @@ import { PaginationControls } from "@/components/pagination-controls";
 import { TaskCreateForm } from "@/components/task-create-form";
 import { TaskFilters, type TaskAssigneeFilter, type TaskStatusFilter } from "@/components/task-filters";
 import { TaskTable } from "@/components/task-table";
+import { WorkersManagement } from "@/components/workers-management";
 import { TableSkeleton } from "@/components/skeletons";
 
 const TASKS_PER_PAGE = 10;
@@ -211,6 +212,8 @@ export default function DashboardPage() {
             ) : null}
           </CardContent>
         </Card>
+
+        <WorkersManagement />
       </div>
     </main>
   );
