@@ -13,8 +13,8 @@ import { getErrorMessage } from "../../utils/errors";
 
 export function LoginScreen() {
   const loginMutation = useLoginMutation();
-  const [email, setEmail] = useState("worker@test.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [errorText, setErrorText] = useState("");
 
   const onSubmit = async () => {
@@ -41,7 +41,7 @@ export function LoginScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          placeholder="worker@test.com"
+          placeholder="email"
           placeholderTextColor="#9ca3af"
           value={email}
           onChangeText={setEmail}
