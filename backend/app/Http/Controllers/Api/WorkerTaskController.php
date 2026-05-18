@@ -64,3 +64,4 @@ class WorkerTaskController extends BaseApiController
             'completed' => $completedCount,
         ], 'Task counts fetched successfully.');
     }
+}

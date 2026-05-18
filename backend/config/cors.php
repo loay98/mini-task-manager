@@ -21,6 +21,7 @@ return [
 
     'allowed_origins' => [
         'http://localhost:3000',
+        'http://localhost:8081',
         'https://mini-task-manager-iota.vercel.app',
         'https://mini-task-manager-git-master-loay98s-projects.vercel.app'
     ],
