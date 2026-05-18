@@ -96,6 +96,7 @@ export function TaskTable({
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>ID</TableHead>
             <TableHead>Task</TableHead>
             <TableHead>Assignee</TableHead>
             <TableHead>Status</TableHead>
@@ -111,7 +112,7 @@ export function TaskTable({
             if (isEditing) {
               return (
                 <TableRow key={task.id} className="bg-muted/30">
-                  <TableCell colSpan={4}>
+                  <TableCell colSpan={5}>
                     <div className="grid gap-3 md:grid-cols-3">
                       <Input
                         value={editTitle}
@@ -146,6 +147,7 @@ export function TaskTable({
 
             return (
               <TableRow key={task.id}>
+                <TableCell className="font-mono text-muted-foreground">#{task.id}</TableCell>
                 <TableCell className="font-medium">{task.title}</TableCell>
                 <TableCell>{task.assignee?.name ?? "Unassigned"}</TableCell>
                 <TableCell>
