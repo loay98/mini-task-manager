@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Enums\UserRole;
 use App\Http\Requests\Task\StoreTaskRequest;
+use App\Http\Requests\Task\UpdateTaskRequest;
 use App\Http\Resources\TaskResource;
 use App\Models\Task;
 use App\Models\User;
@@ -61,5 +62,35 @@ class TaskController extends BaseApiController
         $task->load('assignee:id,name,email,role');
 
         return $this->success(new TaskResource($task), 'Task created successfully.', 201);
+    }
+
+    public function update(UpdateTaskRequest $request, Task $task)
+    {
+        $payload = $request->validated();
+
+        if (array_key_exists('assignee_id', $payload) && ! empty($payload['assignee_id'])) {
+            $worker = User::query()
+                ->where('id', $payload['assignee_id'])
+                ->where('role', UserRole::WORKER->value)
+                ->first();
+
+            if (! $worker) {
+                return $this->error('Selected assignee must be a worker.', 422, [
+                    'assignee_id' => ['Selected assignee must be a worker.'],
+                ]);
+            }
+        }
+
+        $task->update($payload);
+        $task->load('assignee:id,name,email,role');
+
+        return $this->success(new TaskResource($task), 'Task updated successfully.');
+    }
+
+    public function destroy(Task $task)
+    {
+        $task->delete();
+
+        return $this->success(null, 'Task deleted successfully.');
     }
 }
