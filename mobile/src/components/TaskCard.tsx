@@ -31,7 +31,7 @@ export function TaskCard({
   const isCompleted = normalizedStatus === "completed";
   const dueDateLabel = formatDateTime(task.due_date);
   const assignedDateLabel = formatDateTime(task.created_at);
-  const assignedByLabel = task.assigned_by_name ?? task.assigned_by?.name ?? "Manager";
+  const assignedByLabel = task.assigned_by?.name ?? "N/A";
 
   return (
     <View style={styles.card}>
