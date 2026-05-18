@@ -40,7 +40,7 @@ export default function DashboardPage() {
   const [page, setPage] = useState(1);
   const [actingTaskId, setActingTaskId] = useState<number | null>(null);
 
-  const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 500);
+  const { debounced: debouncedSearch, isDebouncing } = useDebouncedValue(search, 800);
 
   const isManager = Boolean(token && user?.role === "manager");
 

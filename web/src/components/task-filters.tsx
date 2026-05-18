@@ -41,7 +41,7 @@ export function TaskFilters({
         value={search}
         onChange={onSearchChange}
         placeholder="Search tasks or assignees..."
-        disabled={disabled}
+        disabled={false}
         isSearching={isSearchPending}
       />
 

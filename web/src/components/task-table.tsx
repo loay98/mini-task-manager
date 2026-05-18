@@ -153,7 +153,12 @@ export function TaskTable({
                 <TableCell>
                   <TaskStatusBadge status={task.status} />
                 </TableCell>
-                <TableCell>{new Date(task.created_at).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {new Date(task.created_at).toLocaleString(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </TableCell>
                 <TableCell className="text-right">
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     <Button

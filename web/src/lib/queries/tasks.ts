@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { getApiMessage } from "@/lib/api-error";
@@ -32,6 +32,7 @@ export function useTasksQuery(params: TaskListParams, enabled = true) {
     queryKey: queryKeys.tasks.list(params),
     queryFn: () => fetchTasks(params),
     enabled,
+    placeholderData: keepPreviousData,
   });
 }
 
