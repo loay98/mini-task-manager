@@ -305,7 +305,7 @@ export function WorkersManagement() {
         {isLoading ? (
           <TableSkeleton rows={4} />
         ) : workers.length > 0 ? (
-          <Table>
+          <Table className="min-w-170">
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
