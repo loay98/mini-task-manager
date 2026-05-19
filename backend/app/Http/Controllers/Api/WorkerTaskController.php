@@ -11,11 +11,40 @@ class WorkerTaskController extends BaseApiController
 {
     public function index(Request $request)
     {
-        $tasks = Task::query()
-            ->with('assignee:id,name,email,role')
-            ->where('assignee_id', $request->user()->id)
-            ->latest()
-            ->paginate((int) $request->integer('per_page', 10));
+        $query = Task::query()
+            ->with('assignee:id,name,email,role', 'assignedBy:id,name,email,role')
+            ->where('assignee_id', $request->user()->id);
+
+        // Filter by status if provided
+        $status = $request->string('status')->toString();
+        if ($status && $status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        // Search by ID or title if provided
+        $search = $request->string('search')->toString();
+        if ($search) {
+            // If search is purely numeric, search by ID
+            if (ctype_digit($search)) {
+                $query->where('id', (int) $search);
+            } else {
+                // Otherwise search by title
+                $query->where('title', 'like', "%{$search}%");
+            }
+        }
+
+        // Sorting
+        $sortBy = $request->string('sort_by')->toString();
+        $sortOrder = $request->string('sort_order')->toString() === 'desc' ? 'desc' : 'asc';
+
+        $allowedSorts = ['id', 'title', 'created_at', 'updated_at', 'due_date'];
+        if ($sortBy && in_array($sortBy, $allowedSorts)) {
+            $query->orderBy($sortBy, $sortOrder);
+        } else {
+            $query->latest();
+        }
+
+        $tasks = $query->paginate((int) $request->integer('per_page', 10));
 
         return $this->success([
             'items' => TaskResource::collection($tasks->items()),
@@ -42,7 +71,7 @@ class WorkerTaskController extends BaseApiController
             'status' => TaskStatus::COMPLETED->value,
         ]);
 
-        $task->load('assignee:id,name,email,role');
+        $task->load('assignee:id,name,email,role', 'assignedBy:id,name,email,role');
 
         return $this->success(new TaskResource($task), 'Task marked as completed.');
     }
@@ -64,3 +93,4 @@ class WorkerTaskController extends BaseApiController
             'completed' => $completedCount,
         ], 'Task counts fetched successfully.');
     }
+}

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,11 +14,11 @@ import { getErrorMessage } from "../../utils/errors";
 
 export function LoginScreen() {
   const loginMutation = useLoginMutation();
-  const [email, setEmail] = useState("worker@test.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [errorText, setErrorText] = useState("");
 
-  const onSubmit = async () => {
+  const onSubmit = useCallback(async () => {
     setErrorText("");
 
     try {
@@ -25,7 +26,7 @@ export function LoginScreen() {
     } catch (error) {
       setErrorText(getErrorMessage(error, "Login failed. Please try again."));
     }
-  };
+  }, [email, password, loginMutation]);
 
   return (
     <KeyboardAvoidingView
@@ -41,7 +42,7 @@ export function LoginScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="email-address"
-          placeholder="worker@test.com"
+          placeholder="email"
           placeholderTextColor="#9ca3af"
           value={email}
           onChangeText={setEmail}
@@ -65,7 +66,14 @@ export function LoginScreen() {
           onPress={onSubmit}
           disabled={loginMutation.isPending}
         >
-          <Text style={styles.buttonLabel}>{loginMutation.isPending ? "Signing In..." : "Sign In"}</Text>
+          {loginMutation.isPending ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={styles.buttonLabel}>Signing In...</Text>
+            </View>
+          ) : (
+            <Text style={styles.buttonLabel}>Sign In</Text>
+          )}
         </Pressable>
       </View>
     </KeyboardAvoidingView>
@@ -132,5 +140,10 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 15,
     fontWeight: "700",
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
 });

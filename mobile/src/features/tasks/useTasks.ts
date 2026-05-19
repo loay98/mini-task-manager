@@ -8,19 +8,22 @@ import {
 import { fetchMyTasksPage, fetchTaskCounts, markTaskCompleted } from "../../api/tasks";
 import type { PaginatedResponse } from "../../types/api";
 import type { Task } from "../../types/task";
+import type { SortBy, SortOrder } from "../../api/tasks";
 
-export const tasksQueryKey = ["my-tasks"] as const;
+export const tasksQueryKey = (status?: string, search?: string, sortBy?: SortBy, sortOrder?: SortOrder) => ["my-tasks", status ?? "all", search ?? "", sortBy ?? "id", sortOrder ?? "asc"] as const;
 export const tasksCountsQueryKey = ["my-tasks-counts"] as const;
 
-export function useTasksQuery() {
+export function useTasksQuery(status?: string, search?: string, sortBy?: SortBy, sortOrder?: SortOrder) {
   return useInfiniteQuery({
-    queryKey: tasksQueryKey,
+    queryKey: tasksQueryKey(status, search, sortBy, sortOrder),
     initialPageParam: 1,
-    queryFn: ({ pageParam }) => fetchMyTasksPage(pageParam),
+    queryFn: ({ pageParam }) => fetchMyTasksPage(pageParam, status, search, sortBy, sortOrder),
     getNextPageParam: (lastPage) => {
       const { current_page, last_page } = lastPage.pagination;
       return current_page < last_page ? current_page + 1 : undefined;
     },
+    staleTime: 30000, // 30 seconds before data is considered stale
+    gcTime: 300000, // 5 minutes cache (TanStack Query v5 uses gcTime instead of cacheTime)
   });
 }
 
@@ -29,6 +32,7 @@ export function useTasksCountQuery() {
     queryKey: tasksCountsQueryKey,
     queryFn: fetchTaskCounts,
     refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 25000, // 25 seconds before data is considered stale
   });
 }
 
@@ -39,47 +43,50 @@ export function useCompleteTaskMutation() {
     mutationFn: markTaskCompleted,
 
     onMutate: async (taskId: number) => {
-      await queryClient.cancelQueries({ queryKey: tasksQueryKey });
+      // Cancel all tasks queries to handle any status filter
+      await queryClient.cancelQueries({ queryKey: ["my-tasks"] });
 
-      const previousTasks = queryClient.getQueryData<
+      // Store previous data for all status variants
+      const previousTasks = queryClient.getQueriesData<
         InfiniteData<PaginatedResponse<Task>, number>
-      >(tasksQueryKey);
+      >({ queryKey: ["my-tasks"] });
 
-      queryClient.setQueryData<InfiniteData<PaginatedResponse<Task>, number>>(
-        tasksQueryKey,
-        (current) => {
-          if (!current) {
-            return current;
-          }
-
-          return {
-            ...current,
-            pages: current.pages.map((page) => ({
-              ...page,
-              items: page.items.map((task) =>
-                task.id === taskId
-                  ? {
-                      ...task,
-                      status: "completed",
-                    }
-                  : task
-              ),
-            })),
-          };
+      // Optimistically update all tasks queries
+      previousTasks.forEach(([key, data]) => {
+        if (data) {
+          queryClient.setQueryData<InfiniteData<PaginatedResponse<Task>, number>>(
+            key,
+            {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                items: page.items.map((task) =>
+                  task.id === taskId
+                    ? {
+                        ...task,
+                        status: "completed",
+                      }
+                    : task
+                ),
+              })),
+            }
+          );
         }
-      );
+      });
 
       return { previousTasks };
     },
 
     onError: (_error, _taskId, context) => {
       if (context?.previousTasks) {
-        queryClient.setQueryData(tasksQueryKey, context.previousTasks);
+        context.previousTasks.forEach(([key, data]) => {
+          queryClient.setQueryData(key, data);
+        });
       }
     },
 
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
       await queryClient.invalidateQueries({ queryKey: tasksCountsQueryKey });
     },
   });

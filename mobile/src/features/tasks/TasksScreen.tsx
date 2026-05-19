@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -23,64 +23,50 @@ import { getErrorMessage } from "../../utils/errors";
 import { tasksQueryKey, tasksCountsQueryKey, useCompleteTaskMutation, useTasksQuery, useTasksCountQuery } from "./useTasks";
 
 type StatusFilter = "all" | "pending" | "completed";
+type SortBy = "id" | "title" | "created_at" | "updated_at" | "due_date";
+type SortOrder = "asc" | "desc";
+
+const SORT_OPTIONS: { label: string; value: SortBy }[] = [
+  { label: "Task ID", value: "id" },
+  { label: "Name", value: "title" },
+  { label: "Assigned Date", value: "created_at" },
+  { label: "Updated", value: "updated_at" },
+  { label: "Due Date", value: "due_date" },
+];
 
 export function TasksScreen() {
   const insets = useSafeAreaInsets();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
+  const isLoggingOut = useAuthStore((state) => state.isLoggingOut);
   const queryClient = useQueryClient();
   const [searchText, setSearchText] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortBy, setSortBy] = useState<SortBy>("id");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [completingTaskId, setCompletingTaskId] = useState<number | null>(null);
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
   const [lastErrorSeen, setLastErrorSeen] = useState<string | null>(null);
 
-  const tasksQuery = useTasksQuery();
+  const tasksQuery = useTasksQuery(statusFilter, searchText.trim(), sortBy, sortOrder);
   const tasksCountQuery = useTasksCountQuery();
   const completeTaskMutation = useCompleteTaskMutation();
 
-  const tasks = useMemo(
-    () => tasksQuery.data?.pages.flatMap((page) => page.items) ?? [],
-    [tasksQuery.data]
-  );
-
-  const filteredTasks = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
-    const seenIds = new Set<number>();
-
-    return tasks.filter((task) => {
-      // Prevent duplicates in the filtered array
-      if (seenIds.has(task.id)) {
+  const tasks = useMemo(() => {
+    const allTasks = (tasksQuery.data?.pages as Array<{ items: Task[] }> | undefined)?.flatMap((page) => page.items) ?? [];
+    // Deduplicate by id to prevent duplicate keys
+    const seen = new Set<number>();
+    return allTasks.filter((task) => {
+      if (seen.has(task.id)) {
         return false;
       }
-
-      const normalizedStatus = task.status.toLowerCase();
-      // Keep showing the task being completed even if its status changed
-      if (completingTaskId === task.id) {
-        seenIds.add(task.id);
-        return true;
-      }
-
-      const matchesStatus = statusFilter === "all" || normalizedStatus === statusFilter;
-      if (!matchesStatus) {
-        return false;
-      }
-
-      if (!query) {
-        seenIds.add(task.id);
-        return true;
-      }
-
-      const inTitle = task.title.toLowerCase().includes(query);
-      const inDescription = task.description?.toLowerCase().includes(query) ?? false;
-      const inStatus = normalizedStatus.includes(query);
-      const matches = inTitle || inDescription || inStatus;
-      if (matches) {
-        seenIds.add(task.id);
-      }
-      return matches;
+      seen.add(task.id);
+      return true;
     });
-  }, [searchText, statusFilter, tasks, completingTaskId]);
+  }, [tasksQuery.data]);
+
+  // No client-side filtering - all filtering is done by the API
 
   const taskCounts = useMemo(() => {
     return tasksCountQuery.data ?? { all: 0, pending: 0, completed: 0 };
@@ -118,13 +104,13 @@ export function TasksScreen() {
     }
   }, [tasksQuery.error, lastErrorSeen]);
 
-  const onLogout = async () => {
+  const onLogout = useCallback(async () => {
     await logout();
-    queryClient.removeQueries({ queryKey: tasksQueryKey });
+    queryClient.removeQueries({ queryKey: tasksQueryKey(statusFilter, searchText.trim(), sortBy, sortOrder) });
     queryClient.removeQueries({ queryKey: tasksCountsQueryKey });
-  };
+  }, [logout, queryClient, statusFilter, searchText.trim(), sortBy, sortOrder]);
 
-  const onComplete = async (taskId: number) => {
+  const onComplete = useCallback(async (taskId: number) => {
     Alert.alert(
       "Mark as Completed?",
       "Are you sure you want to mark this task as completed?",
@@ -157,7 +143,7 @@ export function TasksScreen() {
         },
       ]
     );
-  };
+  }, [completeTaskMutation]);
 
   const topError = tasksQuery.error
     ? getErrorMessage(tasksQuery.error, "Unable to load tasks.")
@@ -165,13 +151,22 @@ export function TasksScreen() {
       ? getErrorMessage(completeTaskMutation.error, "Unable to update task.")
       : "";
 
-  if (tasksQuery.isPending) {
-    return (
-      <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
-        <CenteredMessage title="Loading tasks" subtitle="Please wait a moment." loading />
-      </SafeAreaView>
-    );
-  }
+  const renderTaskCard = useCallback(
+    ({ item }: { item: Task }) => (
+      <TaskCard
+        task={item}
+        disabled={completeTaskMutation.isPending}
+        isCompleting={completingTaskId === item.id}
+        onComplete={onComplete}
+      />
+    ),
+    [completeTaskMutation.isPending, completingTaskId, onComplete]
+  );
+
+  const keyExtractor = useCallback(
+    (item: Task) => `task-${item.id}-${statusFilter}`,
+    [statusFilter]
+  );
 
   return (
     <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
@@ -181,8 +176,12 @@ export function TasksScreen() {
           <Text style={styles.heading}>My Tasks</Text>
           <Text style={styles.subheading}>{user?.name ?? "Worker"}</Text>
         </View>
-        <Pressable onPress={onLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]}>
-          <Text style={styles.logoutLabel}>Logout</Text>
+        <Pressable onPress={onLogout} style={({ pressed }) => [styles.logoutButton, pressed && styles.buttonPressed]} disabled={isLoggingOut}>
+          {isLoggingOut ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <Text style={styles.logoutLabel}>Logout</Text>
+          )}
         </Pressable>
       </View>
 
@@ -190,7 +189,7 @@ export function TasksScreen() {
         <TextInput
           value={searchText}
           onChangeText={setSearchText}
-          placeholder="Search tasks by title, description, or status"
+          placeholder="Search by task title or task ID"
           placeholderTextColor="#9ca3af"
           style={styles.searchInput}
         />
@@ -215,65 +214,130 @@ export function TasksScreen() {
             );
           })}
         </View>
+
+        {/* Sort Controls */}
+        <View style={styles.sortContainer}>
+          <Pressable
+            onPress={() => setShowSortMenu(!showSortMenu)}
+            style={({ pressed }) => [styles.sortButton, pressed && styles.buttonPressed]}
+          >
+            <View style={styles.sortButtonContent}>
+              <Text style={styles.sortButtonText}>Sort: {SORT_OPTIONS.find((o) => o.value === sortBy)?.label || "Task ID"}</Text>
+              <Text style={styles.sortButtonIcon}>{sortOrder === "asc" ? "▲" : "▼"}</Text>
+            </View>
+          </Pressable>
+
+          {showSortMenu && (
+            <View style={styles.sortMenu}>
+              {SORT_OPTIONS.map((option) => (
+                <Pressable
+                  key={option.value}
+                  onPress={() => {
+                    setSortBy(option.value);
+                    setShowSortMenu(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.sortMenuItem,
+                    sortBy === option.value && styles.sortMenuItemSelected,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text style={sortBy === option.value ? styles.sortMenuLabelSelected : styles.sortMenuLabel}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+              <View style={styles.sortOrderRow}>
+                <Pressable
+                  onPress={() => {
+                    setSortOrder("asc");
+                    setShowSortMenu(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.sortOrderButton,
+                    sortOrder === "asc" && styles.sortOrderButtonSelected,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text style={sortOrder === "asc" ? styles.sortOrderLabelSelected : styles.sortOrderLabel}>ASC</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => {
+                    setSortOrder("desc");
+                    setShowSortMenu(false);
+                  }}
+                  style={({ pressed }) => [
+                    styles.sortOrderButton,
+                    sortOrder === "desc" && styles.sortOrderButtonSelected,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <Text style={sortOrder === "desc" ? styles.sortOrderLabelSelected : styles.sortOrderLabel}>DESC</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </View>
       </View>
 
-      {(tasksQuery.isRefetching || completeTaskMutation.isPending) ? (
-        <View style={styles.topLoaderRow}>
-          <ActivityIndicator size="small" color="#1f6feb" />
-          <Text style={styles.topLoaderText}>Syncing tasks...</Text>
-        </View>
-      ) : null}
+      {tasksQuery.isPending ? (
+        <CenteredMessage title="Loading tasks" subtitle="Please wait a moment." loading />
+      ) : (
+        <>
+          {(tasksQuery.isRefetching || completeTaskMutation.isPending) ? (
+            <View style={styles.topLoaderRow}>
+              <ActivityIndicator size="small" color="#1f6feb" />
+              <Text style={styles.topLoaderText}>Syncing tasks...</Text>
+            </View>
+          ) : null}
 
-      {topError ? <Text style={styles.error}>{topError}</Text> : null}
+          {topError ? <Text style={styles.error}>{topError}</Text> : null}
 
-      <FlatList<Task>
-        data={filteredTasks}
-        keyExtractor={(item) => `task-${item.id}`}
-        contentContainerStyle={[
-          styles.listContent,
-          filteredTasks.length === 0 && styles.emptyListContent,
-        ]}
-        renderItem={({ item }) => (
-          <TaskCard
-            task={item}
-            disabled={completeTaskMutation.isPending}
-            isCompleting={completingTaskId === item.id}
-            onComplete={onComplete}
-          />
-        )}
-        refreshControl={
-          <RefreshControl
-            refreshing={tasksQuery.isRefetching}
-            onRefresh={() => {
-              void tasksQuery.refetch();
+          <FlatList<Task>
+            key={`tasks-${statusFilter}`}
+            data={tasks}
+            extraData={statusFilter}
+            keyExtractor={keyExtractor}
+            contentContainerStyle={[
+              styles.listContent,
+              tasks.length === 0 && styles.emptyListContent,
+            ]}
+            renderItem={renderTaskCard}
+            refreshControl={
+              <RefreshControl
+                refreshing={tasksQuery.isRefetching}
+                onRefresh={() => {
+                  void tasksQuery.refetch();
+                }}
+              />
+            }
+            onEndReachedThreshold={0.2}
+            onEndReached={() => {
+              if (tasksQuery.hasNextPage && !tasksQuery.isFetchingNextPage) {
+                void tasksQuery.fetchNextPage();
+              }
             }}
-          />
-        }
-        onEndReachedThreshold={0.2}
-        onEndReached={() => {
-          if (tasksQuery.hasNextPage && !tasksQuery.isFetchingNextPage) {
-            void tasksQuery.fetchNextPage();
-          }
-        }}
-        ListEmptyComponent={
-          <CenteredMessage
-            title={tasks.length === 0 ? "No assigned tasks" : "No matching tasks"}
-            subtitle={
-              tasks.length === 0
-                ? "You are all caught up. Pull down to refresh."
-                : "Try a different search term."
+            ListEmptyComponent={
+              <CenteredMessage
+                title={tasks.length === 0 ? "No assigned tasks" : "No matching tasks"}
+                subtitle={
+                  tasks.length === 0
+                    ? "You are all caught up. Pull down to refresh."
+                    : "Try a different search term."
+                }
+              />
+            }
+            ListFooterComponent={
+              tasksQuery.isFetchingNextPage ? (
+                <View style={styles.footerLoader}>
+                  <ActivityIndicator color="#1f6feb" />
+                  <Text style={styles.footerText}>Loading more tasks...</Text>
+                </View>
+              ) : null
             }
           />
-        }
-        ListFooterComponent={
-          tasksQuery.isFetchingNextPage ? (
-            <View style={styles.footerLoader}>
-              <ActivityIndicator color="#1f6feb" />
-              <Text style={styles.footerText}>Loading more tasks...</Text>
-            </View>
-          ) : null
-        }
-      />
+        </>
+      )}
 
       <View style={[styles.toastContainer, { top: insets.top + 20, left: 0, right: 0 }]}>
         <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
@@ -310,14 +374,14 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
+    borderColor: "#fecaca",
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#fef2f2",
   },
   logoutLabel: {
-    color: "#374151",
+    color: "#dc2626",
     fontWeight: "700",
     fontSize: 13,
   },
@@ -343,9 +407,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#ffffff",
   },
   filterRow: {
-    marginTop: 10,
+    marginTop: 12,
     flexDirection: "row",
-    gap: 8,
+    justifyContent: "space-between",
   },
   filterChip: {
     borderWidth: 1,
@@ -408,6 +472,94 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: "#b91c1c",
     fontSize: 13,
+  },
+  sortContainer: {
+    marginTop: 12,
+    position: "relative",
+  },
+  sortButton: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "#f9fafb",
+    width: "100%",
+  },
+  sortButtonContent: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  sortButtonText: {
+    color: "#374151",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  sortButtonIcon: {
+    color: "#6b7280",
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  sortMenu: {
+    position: "absolute",
+    top: 40,
+    left: 0,
+    right: 0,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderRadius: 8,
+    padding: 8,
+    zIndex: 100,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4
+  },
+  sortMenuItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  sortMenuItemSelected: {
+    backgroundColor: "#e8f0fe",
+  },
+  sortMenuLabel: {
+    color: "#4b5563",
+    fontSize: 14,
+  },
+  sortMenuLabelSelected: {
+    color: "#1e40af",
+    fontWeight: "600",
+  },
+  sortOrderRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#e5e7eb",
+  },
+  sortOrderButton: {
+    flex: 1,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: "#f3f4f6",
+    alignItems: "center",
+  },
+  sortOrderButtonSelected: {
+    backgroundColor: "#1f6feb",
+  },
+  sortOrderLabel: {
+    color: "#6b7280",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  sortOrderLabelSelected: {
+    color: "#ffffff",
   },
   toastContainer: {
     position: "absolute",

@@ -71,17 +71,25 @@ Main backend files:
 
 ### API Endpoints
 
-Public:
-- POST /api/auth/login
+**Authentication (Public)**
+- `POST /api/auth/login` — Login with email and password; returns JWT token and user
+- `POST /api/auth/logout` — Logout (requires authentication)
 
-Manager:
-- GET /api/tasks
-- GET /api/workers
-- POST /api/tasks
+**Manager Endpoints**
+- `GET /api/dashboard` — Fetch summary: task counts (total, pending, completed) and worker count
+- `GET /api/tasks` — List all tasks with optional filters (search, status, assignee, assigned_by, sort_by, sort_order, pagination)
+- `POST /api/tasks` — Create a new task (title, assignee_id optional, due_date optional)
+- `PATCH /api/tasks/{id}` — Update a task (title, status, assignee_id, due_date)
+- `DELETE /api/tasks/{id}` — Delete a task
+- `GET /api/workers` — List all workers with optional filters (search, sort_by, sort_order, pagination)
+- `POST /api/workers` — Create a new worker (name, email, password)
+- `PATCH /api/workers/{id}` — Update a worker (name, email, password optional)
+- `DELETE /api/workers/{id}` — Delete a worker
 
-Worker:
-- GET /api/my-tasks
-- PATCH /api/tasks/{id}/complete
+**Worker Endpoints**
+- `GET /api/my-tasks` — List tasks assigned to the current worker (includes filters and pagination)
+- `GET /api/my-tasks/counts` — Fetch task counts for the current worker (total, pending, completed)
+- `PATCH /api/tasks/{id}/complete` — Mark a task as completed (worker can only mark own assigned tasks)
 
 ### Standard Response Envelope
 
@@ -215,62 +223,89 @@ Mobile:
 3. copy .env.example to .env
 4. npx expo start
 
-## Deployment (Free Platforms)
+## Deployment (Free/Affordable Platforms)
 
-## Database: Railway PostgreSQL
+## Database: Supabase PostgreSQL
 
-1. Create a Railway PostgreSQL service.
-2. Copy host, port, database, username, and password.
-3. Set Render backend environment variables:
-   - DB_CONNECTION=pgsql
-   - DB_HOST, DB_PORT (5432), DB_DATABASE, DB_USERNAME, DB_PASSWORD
+1. Create a new Supabase project at [supabase.com](https://supabase.com).
+2. From the project settings, retrieve connection details:
+   - **Host**: Found under Database settings (Connection string)
+   - **Port**: 5432 (default)
+   - **Database**: postgres (default)
+   - **Username**: postgres (default)
+   - **Password**: Your project password
+3. Set these in your Render backend environment:
+   - `DB_CONNECTION=pgsql`
+   - `DB_HOST=your-supabase-host.supabase.co`
+   - `DB_PORT=5432`
+   - `DB_DATABASE=postgres`
+   - `DB_USERNAME=postgres`
+   - `DB_PASSWORD=your-supabase-password`
 
 ## Backend: Render
 
 Files included:
-- render.yaml
-- backend/Dockerfile
+- `render.yaml` — Blueprint definition
+- `backend/Dockerfile` — Docker image config
 
 Steps:
-1. Create a new Render Blueprint from this repository.
-2. Set secrets/values marked sync: false in render.yaml.
-3. Ensure APP_KEY and JWT_SECRET are generated secure values.
-4. Deploy and verify /up and /api/auth/login.
+1. Sign up at [render.com](https://render.com).
+2. Connect your GitHub repository.
+3. Create a new Blueprint from this repository.
+4. In `render.yaml`, configure environment variables (marked `sync: false`):
+   - `APP_KEY`: Generate via `php artisan key:generate`
+   - `JWT_SECRET`: Generate via `php artisan jwt:secret`
+   - `APP_URL`: Your Render backend URL
+   - `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`: From Supabase
+5. Deploy the blueprint.
+6. Verify:
+   - Health: `GET https://your-render-backend-url/up`
+   - Login: `POST https://your-render-backend-url/api/auth/login`
 
-Deployment placeholder:
-- Backend URL: https://your-render-api-url
+Deployment URL: `https://your-mini-task-manager-api.onrender.com`
 
-## Web: Vercel
+## Web (Manager Portal): Vercel
 
 Files included:
-- web/vercel.json
+- `web/vercel.json` — Deployment config
 
 Steps:
-1. Import repository into Vercel.
-2. Set project root to web.
-3. Add env var NEXT_PUBLIC_API_URL=https://your-render-api-url/api
+1. Sign up at [vercel.com](https://vercel.com).
+2. Import your GitHub repository.
+3. Configure:
+   - **Root Directory**: `web`
+   - **Environment Variables**:
+     - `NEXT_PUBLIC_API_URL=https://your-render-backend-url/api`
 4. Deploy.
+5. Test login with manager@test.com / password
 
-Deployment placeholder:
-- Web URL: https://your-vercel-web-url
+Deployment URL: `https://your-mini-task-manager-manager.vercel.app`
 
-## Mobile: Expo EAS
+## Mobile (Worker App): Expo EAS
 
 Files included:
-- mobile/eas.json
+- `mobile/eas.json` — EAS Build config
+- `mobile/app.json` — Expo app config
 
 Steps:
-1. cd mobile
-2. npm install -g eas-cli
-3. eas login
-4. eas build:configure
-5. Set EXPO_PUBLIC_API_URL to deployed backend API URL
-6. Run build:
-   - eas build -p android --profile preview
-   - eas build -p ios --profile production
+1. Sign up at [expo.dev](https://expo.dev).
+2. Install EAS CLI: `npm install -g eas-cli`
+3. From the mobile folder:
+   ```bash
+   cd mobile
+   eas login
+   eas build:configure
+   ```
+4. Update `eas.json` with Render backend URL:
+   - Set `EXPO_PUBLIC_API_URL` to `https://your-render-backend-url/api`
+5. Build:
+   ```bash
+   eas build -p android --profile preview
+   eas build -p ios --profile production
+   ```
+6. Download APK/IPA from Expo dashboard or scan QR code.
 
-Deployment placeholder:
-- Mobile project slug: mini-task-manager-worker
+Project slug: `mini-task-manager-worker`
 
 ## Practical Engineering Decisions
 

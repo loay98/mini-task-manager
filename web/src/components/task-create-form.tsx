@@ -6,20 +6,32 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { WorkerCombobox } from "@/components/worker-combobox";
+import { DateTimePicker } from "@/components/date-picker";
+
+function toDateTimeLocalValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
 
 const schema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   assignee_id: z.number().optional(),
+  due_date: z.string().optional(),
 });
 
 interface TaskCreateFormProps {
-  onSubmit: (input: { title: string; assignee_id?: number }) => Promise<void>;
+  onSubmit: (input: { title: string; assignee_id?: number; due_date?: string }) => Promise<void>;
   loading?: boolean;
 }
 
 export function TaskCreateForm({ onSubmit, loading = false }: TaskCreateFormProps) {
   const [title, setTitle] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [dueDate, setDueDate] = useState<Date | undefined>();
   const [error, setError] = useState("");
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -29,6 +41,7 @@ export function TaskCreateForm({ onSubmit, loading = false }: TaskCreateFormProp
     const parsed = schema.safeParse({
       title,
       assignee_id: assigneeId ? Number(assigneeId) : undefined,
+      due_date: dueDate ? toDateTimeLocalValue(dueDate) : undefined,
     });
 
     if (!parsed.success) {
@@ -39,10 +52,11 @@ export function TaskCreateForm({ onSubmit, loading = false }: TaskCreateFormProp
     await onSubmit(parsed.data);
     setTitle("");
     setAssigneeId("");
+    setDueDate(undefined);
   };
 
   return (
-    <form className="grid gap-3 md:grid-cols-3" onSubmit={handleSubmit}>
+    <form className="grid gap-3 md:grid-cols-4" onSubmit={handleSubmit}>
       <div className="md:col-span-2">
         <Input
           placeholder="Create a task title..."
@@ -52,7 +66,8 @@ export function TaskCreateForm({ onSubmit, loading = false }: TaskCreateFormProp
         />
       </div>
       <WorkerCombobox value={assigneeId} onChange={setAssigneeId} disabled={loading} />
-      <div className="md:col-span-3 flex items-center gap-3">
+      <DateTimePicker date={dueDate} onSelect={setDueDate} disabled={loading} placeholder="Due date & time" />
+      <div className="md:col-span-4 flex items-center gap-3">
         <Button type="submit" disabled={loading}>
           {loading ? (
             <>

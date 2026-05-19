@@ -26,6 +26,7 @@ class TaskFactory extends Factory
             'title' => fake()->sentence(4),
             'status' => TaskStatus::PENDING->value,
             'assignee_id' => User::factory()->worker(),
+            'assigned_by' => User::factory()->manager(),
         ];
     }
 }

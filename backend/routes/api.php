@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function (): void {
     Route::post('/login', [AuthController::class, 'login']);
+    Route::middleware('auth:api')->post('/logout', [AuthController::class, 'logout']);
 });
 
 Route::middleware('auth:api')->group(function (): void {
@@ -26,7 +27,6 @@ Route::middleware('auth:api')->group(function (): void {
 
     Route::middleware('role:worker')->group(function (): void {
         Route::get('/my-tasks', [WorkerTaskController::class, 'index']);
-        Route::get('/my-tasks/count', [WorkerTaskController::class, 'counts']);
         Route::get('/my-tasks/counts', [WorkerTaskController::class, 'counts']);
         Route::patch('/tasks/{task}/complete', [WorkerTaskController::class, 'complete']);
     });
